@@ -5,10 +5,10 @@ go 1.24.1
 require (
 	github.com/cloudflare/cfssl v1.6.5
 	github.com/jmoiron/sqlx v1.4.0
-	github.com/mattn/go-sqlite3 v1.14.28
-	golang.org/x/crypto v0.39.0
+	github.com/mattn/go-sqlite3 v1.14.33
+	golang.org/x/crypto v0.48.0
 	gopkg.in/yaml.v3 v3.0.1
-	software.sslmate.com/src/go-pkcs12 v0.5.0
+	software.sslmate.com/src/go-pkcs12 v0.7.0
 )
 
 require (
