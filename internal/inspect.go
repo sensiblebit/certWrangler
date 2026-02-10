@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/sensiblebit/certkit"
 )
@@ -119,8 +120,8 @@ func inspectCert(cert *x509.Certificate) InspectResult {
 		Subject:   cert.Subject.String(),
 		Issuer:    cert.Issuer.String(),
 		Serial:    cert.SerialNumber.String(),
-		NotBefore: cert.NotBefore.UTC().Format("2006-01-02T15:04:05Z"),
-		NotAfter:  cert.NotAfter.UTC().Format("2006-01-02T15:04:05Z"),
+		NotBefore: cert.NotBefore.UTC().Format(time.RFC3339),
+		NotAfter:  cert.NotAfter.UTC().Format(time.RFC3339),
 		CertType:  certkit.GetCertificateType(cert),
 		KeyAlgo:   certkit.PublicKeyAlgorithmName(cert.PublicKey),
 		KeySize:   publicKeySize(cert.PublicKey),
@@ -184,6 +185,8 @@ func privateKeySize(key any) string {
 // FormatInspectResults formats inspection results as text or JSON.
 func FormatInspectResults(results []InspectResult, format string) (string, error) {
 	switch format {
+	case "text":
+		return formatInspectText(results), nil
 	case "json":
 		data, err := json.MarshalIndent(results, "", "  ")
 		if err != nil {
@@ -191,7 +194,7 @@ func FormatInspectResults(results []InspectResult, format string) (string, error
 		}
 		return string(data), nil
 	default:
-		return formatInspectText(results), nil
+		return "", fmt.Errorf("unsupported output format %q (use text or json)", format)
 	}
 }
 

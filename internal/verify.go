@@ -43,7 +43,7 @@ func VerifyCert(ctx context.Context, certPath, keyPath string, checkChain bool, 
 
 	result := &VerifyResult{
 		Subject:  cert.Subject.String(),
-		NotAfter: cert.NotAfter.UTC().Format("2006-01-02T15:04:05Z"),
+		NotAfter: cert.NotAfter.UTC().Format(time.RFC3339),
 	}
 
 	// Key-cert match check

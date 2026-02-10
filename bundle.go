@@ -3,6 +3,7 @@ package certkit
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"crypto/x509"
 	"fmt"
 	"io"
@@ -16,22 +17,34 @@ import (
 
 // BundleResult holds the resolved chain and metadata.
 type BundleResult struct {
-	Leaf          *x509.Certificate
+	// Leaf is the end-entity certificate.
+	Leaf *x509.Certificate
+	// Intermediates are the CA certificates between the leaf and root.
 	Intermediates []*x509.Certificate
-	Roots         []*x509.Certificate
-	Warnings      []string
+	// Roots are the trust anchor certificates (typically one).
+	Roots []*x509.Certificate
+	// Warnings are non-fatal issues found during chain resolution.
+	Warnings []string
 }
 
 // BundleOptions configures chain resolution.
 type BundleOptions struct {
+	// ExtraIntermediates are additional intermediates to consider during chain building.
 	ExtraIntermediates []*x509.Certificate
-	FetchAIA           bool
-	AIATimeoutMs       int
-	AIAMaxDepth        int
-	TrustStore         string // "system", "mozilla", "custom"
-	CustomRoots        []*x509.Certificate
-	Verify             bool
-	IncludeRoot        bool
+	// FetchAIA enables fetching intermediate certificates via AIA CA Issuers URLs.
+	FetchAIA bool
+	// AIATimeoutMs is the HTTP timeout in milliseconds for AIA fetches.
+	AIATimeoutMs int
+	// AIAMaxDepth is the maximum number of AIA hops to follow.
+	AIAMaxDepth int
+	// TrustStore selects the root certificate pool: "system", "mozilla", or "custom".
+	TrustStore string
+	// CustomRoots are root certificates used when TrustStore is "custom".
+	CustomRoots []*x509.Certificate
+	// Verify enables chain verification against the trust store.
+	Verify bool
+	// IncludeRoot includes the root certificate in the result.
+	IncludeRoot bool
 }
 
 // DefaultOptions returns sensible defaults.
@@ -248,7 +261,7 @@ func Bundle(ctx context.Context, leaf *x509.Certificate, opts BundleOptions) (*B
 	case "mozilla":
 		rootPool = x509.NewCertPool()
 		if !rootPool.AppendCertsFromPEM([]byte(embedded.MozillaCACertificatesPEM())) {
-			return nil, fmt.Errorf("failed to parse embedded Mozilla root certificates")
+			return nil, errors.New("failed to parse embedded Mozilla root certificates")
 		}
 	case "custom":
 		rootPool = x509.NewCertPool()

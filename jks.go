@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"time"
 
@@ -65,7 +66,7 @@ func DecodeJKS(data []byte, password string) ([]*x509.Certificate, []crypto.Priv
 	}
 
 	if len(certs) == 0 && len(keys) == 0 {
-		return nil, nil, fmt.Errorf("jks contains no usable certificates or keys")
+		return nil, nil, errors.New("JKS contains no usable certificates or keys")
 	}
 
 	return certs, keys, nil

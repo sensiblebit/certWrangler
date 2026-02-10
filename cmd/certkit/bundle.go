@@ -110,7 +110,9 @@ func runBundle(cmd *cobra.Command, args []string) error {
 		}
 		fmt.Fprintf(os.Stderr, "Wrote %s (%d bytes)\n", bundleOutFile, len(output))
 	} else {
-		os.Stdout.Write(output)
+		if _, err := os.Stdout.Write(output); err != nil {
+			return fmt.Errorf("writing to stdout: %w", err)
+		}
 	}
 
 	return nil
@@ -180,7 +182,11 @@ func loadBundleInput(path string, passwords []string) (*x509.Certificate, crypto
 func selectLeafByKey(key crypto.PrivateKey, currentLeaf *x509.Certificate, extras []*x509.Certificate) (*x509.Certificate, []*x509.Certificate, error) {
 	all := append([]*x509.Certificate{currentLeaf}, extras...)
 	for i, cert := range all {
-		if match, _ := certkit.KeyMatchesCert(key, cert); match {
+		match, err := certkit.KeyMatchesCert(key, cert)
+		if err != nil {
+			continue
+		}
+		if match {
 			rest := make([]*x509.Certificate, 0, len(all)-1)
 			rest = append(rest, all[:i]...)
 			rest = append(rest, all[i+1:]...)

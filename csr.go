@@ -6,6 +6,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
+	"errors"
 	"crypto/x509/pkix"
 	"encoding/json"
 	"encoding/pem"
@@ -27,7 +28,7 @@ func GenerateCSR(leaf *x509.Certificate, privateKey crypto.PrivateKey) (csrPEM s
 		var ok bool
 		signer, ok = privateKey.(crypto.Signer)
 		if !ok {
-			return "", "", fmt.Errorf("private key does not implement crypto.Signer")
+			return "", "", errors.New("private key does not implement crypto.Signer")
 		}
 	} else {
 		key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -71,8 +72,10 @@ func GenerateCSR(leaf *x509.Certificate, privateKey crypto.PrivateKey) (csrPEM s
 
 // CSRTemplate is a JSON-serializable template for CSR generation.
 type CSRTemplate struct {
+	// Subject contains the distinguished name fields for the CSR.
 	Subject CSRSubject `json:"subject"`
-	Hosts   []string   `json:"hosts"`
+	// Hosts lists the DNS names, IP addresses, URIs, and email addresses for SANs.
+	Hosts []string `json:"hosts"`
 }
 
 // CSRSubject holds the subject fields for a CSR template.

@@ -11,6 +11,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -308,7 +309,7 @@ func buildCSRSubject(existingCert *x509.Certificate, bundleConfig *BundleConfig)
 func generateCSR(cert *CertificateRecord, key *KeyRecord, bundleConfig *BundleConfig) (csrPEM []byte, csrJSON []byte, err error) {
 	block, _ := pem.Decode([]byte(cert.PEM))
 	if block == nil {
-		return nil, nil, fmt.Errorf("failed to decode certificate PEM")
+		return nil, nil, errors.New("failed to decode certificate PEM")
 	}
 	existingCert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {

@@ -5,6 +5,7 @@ package certkit
 import (
 	"bytes"
 	"crypto"
+	"errors"
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
@@ -41,7 +42,7 @@ func ParsePEMCertificates(pemData []byte) ([]*x509.Certificate, error) {
 		certs = append(certs, cert)
 	}
 	if len(certs) == 0 {
-		return nil, fmt.Errorf("no certificates found in PEM data")
+		return nil, errors.New("no certificates found in PEM data")
 	}
 	return certs, nil
 }
@@ -61,7 +62,7 @@ func ParsePEMCertificate(pemData []byte) (*x509.Certificate, error) {
 func ParsePEMPrivateKey(pemData []byte) (crypto.PrivateKey, error) {
 	block, _ := pem.Decode(pemData)
 	if block == nil {
-		return nil, fmt.Errorf("no PEM block found in private key data")
+		return nil, errors.New("no PEM block found in private key data")
 	}
 
 	switch block.Type {
@@ -80,7 +81,7 @@ func ParsePEMPrivateKey(pemData []byte) (crypto.PrivateKey, error) {
 		if key, err := x509.ParseECPrivateKey(block.Bytes); err == nil {
 			return key, nil
 		}
-		return nil, fmt.Errorf("failed to parse PRIVATE KEY block with any known format")
+		return nil, errors.New("failed to parse PRIVATE KEY block with any known format")
 	default:
 		return nil, fmt.Errorf("unsupported PEM block type %q", block.Type)
 	}
@@ -104,7 +105,7 @@ func ParsePEMPrivateKeyWithPasswords(pemData []byte, passwords []string) (crypto
 
 	block, _ := pem.Decode(pemData)
 	if block == nil {
-		return nil, fmt.Errorf("no PEM block found in private key data")
+		return nil, errors.New("no PEM block found in private key data")
 	}
 
 	//nolint:staticcheck // x509.IsEncryptedPEMBlock is deprecated but needed for legacy encrypted PEM support
@@ -130,14 +131,14 @@ func ParsePEMPrivateKeyWithPasswords(pemData []byte, passwords []string) (crypto
 		}
 	}
 
-	return nil, fmt.Errorf("failed to decrypt private key with any provided password")
+	return nil, errors.New("failed to decrypt private key with any provided password")
 }
 
 // ParsePEMCertificateRequest parses a single certificate request from PEM data.
 func ParsePEMCertificateRequest(pemData []byte) (*x509.CertificateRequest, error) {
 	block, _ := pem.Decode(pemData)
 	if block == nil {
-		return nil, fmt.Errorf("no PEM block found in certificate request data")
+		return nil, errors.New("no PEM block found in certificate request data")
 	}
 	if block.Type != "CERTIFICATE REQUEST" {
 		return nil, fmt.Errorf("expected CERTIFICATE REQUEST PEM block, got %q", block.Type)

@@ -3,6 +3,7 @@ package certkit
 import (
 	"crypto"
 	"crypto/ecdsa"
+	"errors"
 	"crypto/ed25519"
 	"crypto/rsa"
 	"crypto/x509"
@@ -48,7 +49,7 @@ func DecodePKCS12(pfxData []byte, password string) (crypto.PrivateKey, *x509.Cer
 // Returns the DER-encoded PKCS#7 SignedData structure.
 func EncodePKCS7(certs []*x509.Certificate) ([]byte, error) {
 	if len(certs) == 0 {
-		return nil, fmt.Errorf("no certificates to encode")
+		return nil, errors.New("no certificates to encode")
 	}
 	var derBytes []byte
 	for _, cert := range certs {
@@ -65,7 +66,7 @@ func DecodePKCS7(derData []byte) ([]*x509.Certificate, error) {
 		return nil, fmt.Errorf("parsing PKCS#7: %w", err)
 	}
 	if len(p7.Certificates) == 0 {
-		return nil, fmt.Errorf("pkcs#7 bundle contains no certificates")
+		return nil, errors.New("PKCS#7 bundle contains no certificates")
 	}
 	return p7.Certificates, nil
 }

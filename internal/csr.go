@@ -3,6 +3,7 @@ package internal
 import (
 	"crypto"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -46,7 +47,7 @@ func GenerateCSRFiles(opts CSROptions) (*CSRResult, error) {
 		sources++
 	}
 	if sources != 1 {
-		return nil, fmt.Errorf("exactly one of --template, --cert, or --from-csr must be specified")
+		return nil, errors.New("exactly one of --template, --cert, or --from-csr must be specified")
 	}
 
 	// Load or generate key
@@ -64,7 +65,7 @@ func GenerateCSRFiles(opts CSROptions) (*CSRResult, error) {
 		var ok bool
 		signer, ok = key.(crypto.Signer)
 		if !ok {
-			return nil, fmt.Errorf("private key does not implement crypto.Signer")
+			return nil, errors.New("private key does not implement crypto.Signer")
 		}
 	} else {
 		var err error

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -73,7 +74,7 @@ func runVerify(cmd *cobra.Command, args []string) error {
 	fmt.Print(internal.FormatVerifyResult(result))
 
 	if len(result.Errors) > 0 {
-		return fmt.Errorf("verification failed")
+		return errors.New("verification failed")
 	}
 	return nil
 }
