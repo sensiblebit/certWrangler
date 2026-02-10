@@ -12,9 +12,11 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "certkit",
-	Short: "Certificate management tool",
-	Long:  "Ingest TLS/SSL certificates and keys, catalog them in SQLite, and export organized bundles.",
+	Use:           "certkit",
+	Short:         "Certificate management tool",
+	Long:          "Ingest TLS/SSL certificates and keys, catalog them in SQLite, and export organized bundles.",
+	SilenceUsage:  true,
+	SilenceErrors: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		internal.SetupLogger(logLevel)
 		return nil

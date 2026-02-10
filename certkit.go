@@ -279,7 +279,7 @@ func extractPublicKeyBitString(spkiDER []byte) ([]byte, error) {
 func ComputeSKID(pub crypto.PublicKey) ([]byte, error) {
 	der, err := x509.MarshalPKIXPublicKey(pub)
 	if err != nil {
-		return nil, fmt.Errorf("marshal PKIX: %v", err)
+		return nil, fmt.Errorf("marshal PKIX: %w", err)
 	}
 	bits, err := extractPublicKeyBitString(der)
 	if err != nil {
@@ -295,7 +295,7 @@ func ComputeSKID(pub crypto.PublicKey) ([]byte, error) {
 func ComputeSKIDLegacy(pub crypto.PublicKey) ([]byte, error) {
 	der, err := x509.MarshalPKIXPublicKey(pub)
 	if err != nil {
-		return nil, fmt.Errorf("marshal PKIX: %v", err)
+		return nil, fmt.Errorf("marshal PKIX: %w", err)
 	}
 	bits, err := extractPublicKeyBitString(der)
 	if err != nil {

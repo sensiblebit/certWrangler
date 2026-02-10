@@ -105,7 +105,7 @@ func runScan(cmd *cobra.Command, args []string) error {
 		if err := os.MkdirAll(scanOutDir, 0755); err != nil {
 			return fmt.Errorf("failed to create output directory %s: %w", scanOutDir, err)
 		}
-		if err := internal.ExportBundles(bundleConfigs, scanOutDir, db, scanForceExport, scanDuplicates); err != nil {
+		if err := internal.ExportBundles(cmd.Context(), bundleConfigs, scanOutDir, db, scanForceExport, scanDuplicates); err != nil {
 			return fmt.Errorf("failed to export bundles: %w", err)
 		}
 		if err := db.DumpDB(); err != nil {

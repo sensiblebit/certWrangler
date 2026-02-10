@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/rsa"
@@ -19,7 +18,6 @@ import (
 
 	"github.com/jmoiron/sqlx/types"
 	"github.com/sensiblebit/certkit"
-	"golang.org/x/crypto/pkcs12"
 )
 
 // getKeyType returns a string description of the key type (includes bit length).
@@ -35,10 +33,6 @@ func getKeyType(cert *x509.Certificate) string {
 	default:
 		return fmt.Sprintf("unknown key type: %T", pub)
 	}
-}
-
-func parsePrivateKey(data []byte, passwords []string) (crypto.PrivateKey, error) {
-	return certkit.ParsePEMPrivateKeyWithPasswords(data, passwords)
 }
 
 // processPEMCertificates attempts to parse PEM data as certificates and insert them into the DB.
@@ -155,7 +149,7 @@ func processPEMPrivateKeys(data []byte, path string, cfg *Config) {
 		}
 
 		pemData := pem.EncodeToMemory(block)
-		key, err := parsePrivateKey(pemData, cfg.Passwords)
+		key, err := certkit.ParsePEMPrivateKeyWithPasswords(pemData, cfg.Passwords)
 		if err != nil || key == nil {
 			slog.Debug("Failed to parse private key from PEM block", "path", path, "error", err)
 			continue
@@ -304,18 +298,29 @@ func processDER(data []byte, path string, cfg *Config) {
 	// Try PKCS#12 as last resort
 	slog.Debug("Attempting PKCS#12 parsing")
 	for _, password := range cfg.Passwords {
-		pems, err := pkcs12.ToPEM(data, password)
+		privKey, leaf, caCerts, err := certkit.DecodePKCS12(data, password)
 		if err != nil {
-			slog.Debug("Failed to extract safe bags", "password", password, "error", err)
+			slog.Debug("Failed PKCS#12 decode", "password", password, "error", err)
 			continue
 		}
 
-		for i, pemBlock := range pems {
-			slog.Debug("Processing extracted PEM block", "block", i+1, "path", path)
-			pemData := pem.EncodeToMemory(pemBlock)
-			blockPath := fmt.Sprintf("%s[%d]", path, i+1)
-			if !processPEMCertificates(pemData, blockPath, cfg) {
-				processPEMPrivateKeys(pemData, blockPath, cfg)
+		// Process leaf and CA certificates
+		if leaf != nil {
+			certPEM := []byte(certkit.CertToPEM(leaf))
+			processPEMCertificates(certPEM, path, cfg)
+		}
+		for _, ca := range caCerts {
+			certPEM := []byte(certkit.CertToPEM(ca))
+			processPEMCertificates(certPEM, path, cfg)
+		}
+
+		// Process private key
+		if privKey != nil {
+			keyPEM, err := certkit.MarshalPrivateKeyToPEM(privKey)
+			if err != nil {
+				slog.Debug("Failed to marshal PKCS#12 key", "error", err)
+			} else {
+				processPEMPrivateKeys([]byte(keyPEM), path, cfg)
 			}
 		}
 		return
@@ -324,6 +329,8 @@ func processDER(data []byte, path string, cfg *Config) {
 	slog.Debug("Failed to parse DER data in any known format")
 }
 
+// ProcessFile reads a file (or stdin when cfg.InputPath is "-") and ingests
+// any certificates, keys, or CSRs it contains into the database.
 func ProcessFile(path string, cfg *Config) error {
 	var data []byte
 	var err error
@@ -335,7 +342,7 @@ func ProcessFile(path string, cfg *Config) error {
 	}
 
 	if err != nil {
-		return fmt.Errorf("could not read %s: %v", path, err)
+		return fmt.Errorf("could not read %s: %w", path, err)
 	}
 
 	slog.Debug("Processing file", "path", path)

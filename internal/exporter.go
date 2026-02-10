@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -113,17 +114,17 @@ func writeBundleFiles(outDir, bundleFolder string, cert *CertificateRecord, key 
 	// Generate and write the PKCS#12 (.p12) file.
 	privKey, err := certkit.ParsePEMPrivateKey(key.KeyData)
 	if err != nil {
-		return fmt.Errorf("failed to parse private key for P12: %v", err)
+		return fmt.Errorf("failed to parse private key for P12: %w", err)
 	}
 
 	// Create PKCS#12 data with password "changeit"
 	p12Data, err := certkit.EncodePKCS12Legacy(privKey, bundle.Leaf, bundle.Intermediates, "changeit")
 	if err != nil {
-		return fmt.Errorf("failed to create P12: %v", err)
+		return fmt.Errorf("failed to create P12: %w", err)
 	}
 
 	if err := os.WriteFile(filepath.Join(folderPath, prefix+".p12"), p12Data, 0600); err != nil {
-		return fmt.Errorf("failed to write P12 file: %v", err)
+		return fmt.Errorf("failed to write P12 file: %w", err)
 	}
 
 	// Generate Kubernetes TLS secret YAML
@@ -141,10 +142,10 @@ func writeBundleFiles(outDir, bundleFolder string, cert *CertificateRecord, key 
 	}
 	k8sYAML, err := yaml.Marshal(k8sSecret)
 	if err != nil {
-		return fmt.Errorf("failed to marshal kubernetes secret yaml: %v", err)
+		return fmt.Errorf("failed to marshal kubernetes secret yaml: %w", err)
 	}
 	if err := os.WriteFile(filepath.Join(folderPath, prefix+".k8s.yaml"), k8sYAML, 0600); err != nil {
-		return fmt.Errorf("failed to write kubernetes secret yaml: %v", err)
+		return fmt.Errorf("failed to write kubernetes secret yaml: %w", err)
 	}
 
 	jsonData, err := generateJSON(bundle)
@@ -311,12 +312,12 @@ func generateCSR(cert *CertificateRecord, key *KeyRecord, bundleConfig *BundleCo
 	}
 	existingCert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to parse certificate: %v", err)
+		return nil, nil, fmt.Errorf("failed to parse certificate: %w", err)
 	}
 
 	privKey, err := certkit.ParsePEMPrivateKey(key.KeyData)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to parse private key: %v", err)
+		return nil, nil, fmt.Errorf("failed to parse private key: %w", err)
 	}
 
 	csrDNSNames := make([]string, 0, len(existingCert.DNSNames))
@@ -366,9 +367,9 @@ func generateCSR(cert *CertificateRecord, key *KeyRecord, bundleConfig *BundleCo
 		ExtraExtensions:    []pkix.Extension{},
 	}
 
-	csrDER, err := x509.CreateCertificateRequest(nil, template, privKey)
+	csrDER, err := x509.CreateCertificateRequest(rand.Reader, template, privKey)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create CSR: %v", err)
+		return nil, nil, fmt.Errorf("failed to create CSR: %w", err)
 	}
 
 	csrPEM = pem.EncodeToMemory(&pem.Block{
@@ -378,7 +379,7 @@ func generateCSR(cert *CertificateRecord, key *KeyRecord, bundleConfig *BundleCo
 
 	parsedCSR, err := x509.ParseCertificateRequest(csrDER)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to parse generated CSR: %v", err)
+		return nil, nil, fmt.Errorf("failed to parse generated CSR: %w", err)
 	}
 
 	csrDetails := map[string]any{
@@ -399,7 +400,7 @@ func generateCSR(cert *CertificateRecord, key *KeyRecord, bundleConfig *BundleCo
 
 	csrJSON, err = json.MarshalIndent(csrDetails, "", "  ")
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to marshal CSR JSON: %v", err)
+		return nil, nil, fmt.Errorf("failed to marshal CSR JSON: %w", err)
 	}
 
 	return csrPEM, csrJSON, nil
@@ -431,10 +432,10 @@ func formatKeyAlgorithm(pub any) string {
 // ExportBundles iterates over all key records in the database, finds the matching
 // certificate record, builds a certificate bundle using certkit.Bundle, and writes out
 // the bundle files into a folder.
-func ExportBundles(cfgs []BundleConfig, outDir string, db *DB, forceBundle bool, duplicates bool) error {
+func ExportBundles(ctx context.Context, cfgs []BundleConfig, outDir string, db *DB, forceBundle bool, duplicates bool) error {
 	keys, err := db.GetAllKeys()
 	if err != nil {
-		return fmt.Errorf("failed to get keys: %v", err)
+		return fmt.Errorf("failed to get keys: %w", err)
 	}
 
 	for _, key := range keys {
@@ -453,14 +454,14 @@ func ExportBundles(cfgs []BundleConfig, outDir string, db *DB, forceBundle bool,
 			opts.Verify = false
 		}
 
-		exportBundleCerts(db, opts, cfgs, outDir, bundleName, key, duplicates)
+		exportBundleCerts(ctx, db, opts, cfgs, outDir, bundleName, key, duplicates)
 	}
 	return nil
 }
 
 // exportBundleCerts processes all certificates for a given bundle name, creating
 // output folders and writing bundle files for each one.
-func exportBundleCerts(db *DB, opts certkit.BundleOptions, cfgs []BundleConfig, outDir, bundleName string, key KeyRecord, duplicates bool) {
+func exportBundleCerts(ctx context.Context, db *DB, opts certkit.BundleOptions, cfgs []BundleConfig, outDir, bundleName string, key KeyRecord, duplicates bool) {
 	var certs []CertificateRecord
 	err := db.Select(&certs, `
 		SELECT c.*
@@ -511,7 +512,7 @@ func exportBundleCerts(db *DB, opts certkit.BundleOptions, cfgs []BundleConfig, 
 			continue
 		}
 
-		bundle, err := certkit.Bundle(context.Background(), leaf, opts)
+		bundle, err := certkit.Bundle(ctx, leaf, opts)
 		if err != nil {
 			slog.Warn("Failed to bundle cert", "serial", bundleCert.Serial, "error", err)
 			continue

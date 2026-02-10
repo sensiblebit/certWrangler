@@ -3,6 +3,7 @@ package internal
 import (
 	"crypto"
 	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
@@ -112,7 +113,7 @@ func generateCSRFromKey(signer crypto.Signer, cn string, sans []string) (string,
 		DNSNames: sans,
 	}
 
-	csrDER, err := x509.CreateCertificateRequest(nil, template, signer)
+	csrDER, err := x509.CreateCertificateRequest(rand.Reader, template, signer)
 	if err != nil {
 		return "", fmt.Errorf("creating CSR: %w", err)
 	}

@@ -118,6 +118,7 @@ func (db *DB) initSchema() error {
 	return nil
 }
 
+// InsertKey inserts a new key record into the database, ignoring duplicates.
 func (db *DB) InsertKey(key KeyRecord) error {
 	_, err := db.NamedExec(`
 		INSERT OR IGNORE INTO keys (subject_key_identifier, key_type, bit_length, public_exponent, modulus, curve, key_data)
@@ -135,6 +136,7 @@ func (db *DB) InsertCertificate(cert CertificateRecord) error {
 	return err
 }
 
+// GetKey returns the key record matching the given subject key identifier.
 func (db *DB) GetKey(skid string) (*KeyRecord, error) {
 	var key KeyRecord
 	err := db.Get(&key, "SELECT * FROM keys WHERE subject_key_identifier = ?", skid)
@@ -147,6 +149,7 @@ func (db *DB) GetKey(skid string) (*KeyRecord, error) {
 	return &key, nil
 }
 
+// GetCert returns the certificate record matching the given serial number and authority key identifier.
 func (db *DB) GetCert(serial, aki string) (*CertificateRecord, error) {
 	var cert CertificateRecord
 	err := db.Get(&cert, "SELECT * FROM certificates WHERE serial_number = ? AND authority_key_identifier = ?", serial, aki)
@@ -272,6 +275,7 @@ func (db *DB) GetScanSummary() (*ScanSummary, error) {
 	return s, nil
 }
 
+// DumpDB logs all certificates and keys in the database at debug level.
 func (db *DB) DumpDB() error {
 	slog.Debug("Dumping certificates")
 

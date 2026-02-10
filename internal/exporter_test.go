@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -842,7 +843,7 @@ func TestExportBundles_EndToEnd(t *testing.T) {
 	outDir := t.TempDir()
 
 	// Use force=true to allow untrusted certs
-	err := ExportBundles(bundleConfigs, outDir, cfg.DB, true, false)
+	err := ExportBundles(context.Background(), bundleConfigs, outDir, cfg.DB, true, false)
 	if err != nil {
 		t.Fatalf("ExportBundles: %v", err)
 	}

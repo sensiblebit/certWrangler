@@ -219,7 +219,7 @@ func TestComputeSKID_DifferentKeysProduceDifferentSKIDs(t *testing.T) {
 
 func TestParsePrivateKey_Unencrypted_RSA(t *testing.T) {
 	keyPEM := rsaKeyPEM(t)
-	key, err := parsePrivateKey(keyPEM, nil)
+	key, err := certkit.ParsePEMPrivateKeyWithPasswords(keyPEM, nil)
 	if err != nil {
 		t.Fatalf("parsePrivateKey RSA: %v", err)
 	}
@@ -230,7 +230,7 @@ func TestParsePrivateKey_Unencrypted_RSA(t *testing.T) {
 
 func TestParsePrivateKey_Unencrypted_ECDSA(t *testing.T) {
 	keyPEM := ecdsaKeyPEM(t)
-	key, err := parsePrivateKey(keyPEM, nil)
+	key, err := certkit.ParsePEMPrivateKeyWithPasswords(keyPEM, nil)
 	if err != nil {
 		t.Fatalf("parsePrivateKey ECDSA: %v", err)
 	}
@@ -241,7 +241,7 @@ func TestParsePrivateKey_Unencrypted_ECDSA(t *testing.T) {
 
 func TestParsePrivateKey_Unencrypted_Ed25519(t *testing.T) {
 	keyPEM := ed25519KeyPEM(t)
-	key, err := parsePrivateKey(keyPEM, nil)
+	key, err := certkit.ParsePEMPrivateKeyWithPasswords(keyPEM, nil)
 	if err != nil {
 		t.Fatalf("parsePrivateKey Ed25519: %v", err)
 	}
@@ -267,7 +267,7 @@ func TestParsePrivateKey_Encrypted(t *testing.T) {
 	encPEM := pem.EncodeToMemory(encBlock)
 
 	// Correct password should work
-	parsed, err := parsePrivateKey(encPEM, []string{"testpass"})
+	parsed, err := certkit.ParsePEMPrivateKeyWithPasswords(encPEM, []string{"testpass"})
 	if err != nil {
 		t.Fatalf("parsePrivateKey with correct password: %v", err)
 	}
@@ -276,7 +276,7 @@ func TestParsePrivateKey_Encrypted(t *testing.T) {
 	}
 
 	// Wrong password should fail
-	_, err = parsePrivateKey(encPEM, []string{"wrongpass"})
+	_, err = certkit.ParsePEMPrivateKeyWithPasswords(encPEM, []string{"wrongpass"})
 	if err == nil {
 		t.Error("expected error with wrong password, got nil")
 	}
