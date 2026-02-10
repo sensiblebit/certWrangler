@@ -6,7 +6,7 @@ import (
 
 	"github.com/cloudflare/cfssl/log"
 
-	"github.com/danielewood/certmangler/internal"
+	"github.com/sensiblebit/certwrangler/internal"
 )
 
 func main() {

@@ -1,4 +1,4 @@
-module github.com/danielewood/certmangler
+module github.com/sensiblebit/certwrangler
 
 go 1.25.1
 

@@ -10,5 +10,5 @@ go get -u ./..
 go mod download
 go mod tidy
 
-# build the certmangler tool
-go build -o certmangler main.go
+# build the certwrangler tool
+go build -o certwrangler main.go

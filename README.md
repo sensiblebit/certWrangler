@@ -1,4 +1,4 @@
-# certMangler
+# certWrangler
 
 A certificate management tool that ingests TLS/SSL certificates and private keys in various formats, catalogs them in a SQLite database, and exports organized bundles in multiple output formats.
 
@@ -17,7 +17,7 @@ A certificate management tool that ingests TLS/SSL certificates and private keys
 Requires Go 1.25+ and a C compiler (for SQLite via cgo).
 
 ```sh
-go build -o certmangler main.go
+go build -o certwrangler main.go
 ```
 
 Or use the included build script:
@@ -29,7 +29,7 @@ Or use the included build script:
 ## Usage
 
 ```
-certmangler -input <path> [flags]
+certwrangler -input <path> [flags]
 ```
 
 ### Flags
@@ -51,25 +51,25 @@ certmangler -input <path> [flags]
 Ingest a directory of certificates and keys:
 
 ```sh
-./certmangler -input ./certs/
+./certwrangler -input ./certs/
 ```
 
 Ingest and export bundles with a persistent database:
 
 ```sh
-./certmangler -input ./certs/ -export -db certs.db -out ./bundles
+./certwrangler -input ./certs/ -export -db certs.db -out ./bundles
 ```
 
 Read from stdin:
 
 ```sh
-cat server.pem | ./certmangler -input -
+cat server.pem | ./certwrangler -input -
 ```
 
 Provide passwords for encrypted PKCS#12 or PEM files:
 
 ```sh
-./certmangler -input ./certs/ -passwords "secret1,secret2" -password-file extra_passwords.txt
+./certwrangler -input ./certs/ -passwords "secret1,secret2" -password-file extra_passwords.txt
 ```
 
 ## Bundle Configuration
