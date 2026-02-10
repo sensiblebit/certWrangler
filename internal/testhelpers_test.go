@@ -17,7 +17,7 @@ import (
 	"bytes"
 
 	"github.com/pavlo-v-chernykh/keystore-go/v4"
-	gopkcs12 "software.sslmate.com/src/go-pkcs12"
+	"github.com/sensiblebit/certkit"
 )
 
 // testCA holds a CA certificate and its private key for signing leaf certs.
@@ -285,7 +285,7 @@ func newExpiredLeaf(t *testing.T, ca testCA) testLeaf {
 // newPKCS12Bundle creates a PKCS#12 bundle from a leaf cert and its key.
 func newPKCS12Bundle(t *testing.T, leaf testLeaf, ca testCA, password string) []byte {
 	t.Helper()
-	p12, err := gopkcs12.LegacyRC2.Encode(leaf.key, leaf.cert, []*x509.Certificate{ca.cert}, password)
+	p12, err := certkit.EncodePKCS12Legacy(leaf.key, leaf.cert, []*x509.Certificate{ca.cert}, password)
 	if err != nil {
 		t.Fatalf("create PKCS#12 bundle: %v", err)
 	}

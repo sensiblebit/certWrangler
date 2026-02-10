@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/sensiblebit/certkit/internal"
@@ -45,7 +46,7 @@ func runKeygen(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	return internal.GenerateKeyFiles(internal.KeygenOptions{
+	result, err := internal.GenerateKeyFiles(internal.KeygenOptions{
 		Algorithm: keygenAlgorithm,
 		Bits:      keygenBits,
 		Curve:     keygenCurve,
@@ -53,4 +54,13 @@ func runKeygen(cmd *cobra.Command, args []string) error {
 		CN:        keygenCN,
 		SANs:      sans,
 	})
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Private key: %s\n", result.KeyFile)
+	fmt.Printf("Public key:  %s\n", result.PubFile)
+	if result.CSRFile != "" {
+		fmt.Printf("CSR:         %s\n", result.CSRFile)
+	}
+	return nil
 }

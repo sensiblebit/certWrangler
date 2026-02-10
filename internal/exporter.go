@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/sensiblebit/certkit"
-	gopkcs12 "software.sslmate.com/src/go-pkcs12"
 	"gopkg.in/yaml.v3"
 )
 
@@ -118,7 +117,7 @@ func writeBundleFiles(outDir, bundleFolder string, cert *CertificateRecord, key 
 	}
 
 	// Create PKCS#12 data with password "changeit"
-	p12Data, err := gopkcs12.LegacyRC2.Encode(privKey, bundle.Leaf, bundle.Intermediates, "changeit")
+	p12Data, err := certkit.EncodePKCS12Legacy(privKey, bundle.Leaf, bundle.Intermediates, "changeit")
 	if err != nil {
 		return fmt.Errorf("failed to create P12: %v", err)
 	}

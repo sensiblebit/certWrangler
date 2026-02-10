@@ -147,7 +147,7 @@ func inspectCSR(csr *x509.CertificateRequest) InspectResult {
 	}
 }
 
-func inspectKey(key interface{}) InspectResult {
+func inspectKey(key any) InspectResult {
 	return InspectResult{
 		Type:    "private_key",
 		KeyType: certkit.KeyAlgorithmName(key),
@@ -155,7 +155,7 @@ func inspectKey(key interface{}) InspectResult {
 	}
 }
 
-func publicKeySize(pub interface{}) string {
+func publicKeySize(pub any) string {
 	switch k := pub.(type) {
 	case *rsa.PublicKey:
 		return fmt.Sprintf("%d", k.N.BitLen())
@@ -168,7 +168,7 @@ func publicKeySize(pub interface{}) string {
 	}
 }
 
-func privateKeySize(key interface{}) string {
+func privateKeySize(key any) string {
 	switch k := key.(type) {
 	case *rsa.PrivateKey:
 		return fmt.Sprintf("%d", k.N.BitLen())
@@ -203,38 +203,38 @@ func formatInspectText(results []InspectResult) string {
 		}
 		switch r.Type {
 		case "certificate":
-			sb.WriteString(fmt.Sprintf("Certificate:\n"))
-			sb.WriteString(fmt.Sprintf("  Subject:     %s\n", r.Subject))
-			sb.WriteString(fmt.Sprintf("  Issuer:      %s\n", r.Issuer))
-			sb.WriteString(fmt.Sprintf("  Serial:      %s\n", r.Serial))
-			sb.WriteString(fmt.Sprintf("  Type:        %s\n", r.CertType))
-			sb.WriteString(fmt.Sprintf("  Not Before:  %s\n", r.NotBefore))
-			sb.WriteString(fmt.Sprintf("  Not After:   %s\n", r.NotAfter))
-			sb.WriteString(fmt.Sprintf("  Key:         %s %s\n", r.KeyAlgo, r.KeySize))
-			sb.WriteString(fmt.Sprintf("  Signature:   %s\n", r.SigAlg))
-			sb.WriteString(fmt.Sprintf("  SHA-256:     %s\n", r.SHA256))
-			sb.WriteString(fmt.Sprintf("  SHA-1:       %s\n", r.SHA1))
+			fmt.Fprintf(&sb, "Certificate:\n")
+			fmt.Fprintf(&sb, "  Subject:     %s\n", r.Subject)
+			fmt.Fprintf(&sb, "  Issuer:      %s\n", r.Issuer)
+			fmt.Fprintf(&sb, "  Serial:      %s\n", r.Serial)
+			fmt.Fprintf(&sb, "  Type:        %s\n", r.CertType)
+			fmt.Fprintf(&sb, "  Not Before:  %s\n", r.NotBefore)
+			fmt.Fprintf(&sb, "  Not After:   %s\n", r.NotAfter)
+			fmt.Fprintf(&sb, "  Key:         %s %s\n", r.KeyAlgo, r.KeySize)
+			fmt.Fprintf(&sb, "  Signature:   %s\n", r.SigAlg)
+			fmt.Fprintf(&sb, "  SHA-256:     %s\n", r.SHA256)
+			fmt.Fprintf(&sb, "  SHA-1:       %s\n", r.SHA1)
 			if r.SKID != "" {
-				sb.WriteString(fmt.Sprintf("  SKID:        %s\n", r.SKID))
+				fmt.Fprintf(&sb, "  SKID:        %s\n", r.SKID)
 			}
 			if r.AKID != "" {
-				sb.WriteString(fmt.Sprintf("  AKID:        %s\n", r.AKID))
+				fmt.Fprintf(&sb, "  AKID:        %s\n", r.AKID)
 			}
 			if len(r.SANs) > 0 {
-				sb.WriteString(fmt.Sprintf("  SANs:        %s\n", strings.Join(r.SANs, ", ")))
+				fmt.Fprintf(&sb, "  SANs:        %s\n", strings.Join(r.SANs, ", "))
 			}
 		case "csr":
-			sb.WriteString(fmt.Sprintf("Certificate Signing Request:\n"))
-			sb.WriteString(fmt.Sprintf("  Subject:     %s\n", r.CSRSubject))
-			sb.WriteString(fmt.Sprintf("  Key:         %s %s\n", r.KeyAlgo, r.KeySize))
-			sb.WriteString(fmt.Sprintf("  Signature:   %s\n", r.SigAlg))
+			fmt.Fprintf(&sb, "Certificate Signing Request:\n")
+			fmt.Fprintf(&sb, "  Subject:     %s\n", r.CSRSubject)
+			fmt.Fprintf(&sb, "  Key:         %s %s\n", r.KeyAlgo, r.KeySize)
+			fmt.Fprintf(&sb, "  Signature:   %s\n", r.SigAlg)
 			if len(r.CSRDNSNames) > 0 {
-				sb.WriteString(fmt.Sprintf("  DNS Names:   %s\n", strings.Join(r.CSRDNSNames, ", ")))
+				fmt.Fprintf(&sb, "  DNS Names:   %s\n", strings.Join(r.CSRDNSNames, ", "))
 			}
 		case "private_key":
-			sb.WriteString(fmt.Sprintf("Private Key:\n"))
-			sb.WriteString(fmt.Sprintf("  Type:        %s\n", r.KeyType))
-			sb.WriteString(fmt.Sprintf("  Size:        %s\n", r.KeySize))
+			fmt.Fprintf(&sb, "Private Key:\n")
+			fmt.Fprintf(&sb, "  Type:        %s\n", r.KeyType)
+			fmt.Fprintf(&sb, "  Size:        %s\n", r.KeySize)
 		}
 	}
 	return sb.String()

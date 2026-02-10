@@ -71,7 +71,7 @@ func FetchLeafFromURL(ctx context.Context, rawURL string, timeoutMs int) (*x509.
 
 	conn, err := dialer.DialContext(ctx, "tcp", net.JoinHostPort(host, port))
 	if err != nil {
-		return nil, fmt.Errorf("TLS dial to %s:%s: %w", host, port, err)
+		return nil, fmt.Errorf("tls dial to %s:%s: %w", host, port, err)
 	}
 	defer func() { _ = conn.Close() }()
 
@@ -127,7 +127,7 @@ func fetchCertFromURL(ctx context.Context, client *http.Client, certURL string) 
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
+		return nil, fmt.Errorf("http %d", resp.StatusCode)
 	}
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20)) // 1MB limit

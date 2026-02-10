@@ -273,16 +273,7 @@ func (db *DB) GetScanSummary() (*ScanSummary, error) {
 }
 
 func (db *DB) DumpDB() error {
-	// Helper function to print formatted headers
-	printHeader := func(title string) {
-		divider := strings.Repeat("=", 10)
-		slog.Debug(divider)
-		slog.Debug(title)
-		slog.Debug(divider)
-	}
-
-	// Print certificates
-	printHeader("CERTIFICATES")
+	slog.Debug("Dumping certificates")
 
 	rows, err := db.Queryx("SELECT * FROM certificates")
 	if err != nil {
@@ -311,8 +302,7 @@ func (db *DB) DumpDB() error {
 	}
 	slog.Debug("Total certificates", "count", certCount)
 
-	// Print keys
-	printHeader("KEYS")
+	slog.Debug("Dumping keys")
 
 	rows, err = db.Queryx("SELECT subject_key_identifier, key_type FROM keys")
 	if err != nil {

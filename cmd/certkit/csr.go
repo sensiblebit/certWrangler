@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/sensiblebit/certkit/internal"
 	"github.com/spf13/cobra"
 )
@@ -48,7 +50,7 @@ func runCSR(cmd *cobra.Command, args []string) error {
 
 	passwords := internal.ProcessPasswords(passwordList, passwordFile)
 
-	return internal.GenerateCSRFiles(internal.CSROptions{
+	result, err := internal.GenerateCSRFiles(internal.CSROptions{
 		TemplatePath: csrTemplatePath,
 		CertPath:     csrCertPath,
 		CSRPath:      csrFromCSR,
@@ -59,4 +61,12 @@ func runCSR(cmd *cobra.Command, args []string) error {
 		OutPath:      csrOutPath,
 		Passwords:    passwords,
 	})
+	if err != nil {
+		return err
+	}
+	fmt.Printf("CSR: %s\n", result.CSRFile)
+	if result.KeyFile != "" {
+		fmt.Printf("Key: %s\n", result.KeyFile)
+	}
+	return nil
 }

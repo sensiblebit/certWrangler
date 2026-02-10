@@ -19,6 +19,7 @@ func ParseLogLevel(level string) slog.Level {
 	case "error":
 		return slog.LevelError
 	default:
+		slog.Warn("unknown log level, defaulting to info", "level", level)
 		return slog.LevelInfo
 	}
 }

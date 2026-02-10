@@ -55,7 +55,7 @@ func TestGenerateKey_InvalidCurve(t *testing.T) {
 
 func TestGenerateKeyFiles_ECDSA(t *testing.T) {
 	dir := t.TempDir()
-	err := GenerateKeyFiles(KeygenOptions{
+	_, err := GenerateKeyFiles(KeygenOptions{
 		Algorithm: "ecdsa",
 		Curve:     "P-256",
 		OutPath:   dir,
@@ -90,7 +90,7 @@ func TestGenerateKeyFiles_ECDSA(t *testing.T) {
 
 func TestGenerateKeyFiles_RSA(t *testing.T) {
 	dir := t.TempDir()
-	err := GenerateKeyFiles(KeygenOptions{
+	_, err := GenerateKeyFiles(KeygenOptions{
 		Algorithm: "rsa",
 		Bits:      2048,
 		OutPath:   dir,
@@ -110,7 +110,7 @@ func TestGenerateKeyFiles_RSA(t *testing.T) {
 
 func TestGenerateKeyFiles_Ed25519(t *testing.T) {
 	dir := t.TempDir()
-	err := GenerateKeyFiles(KeygenOptions{
+	_, err := GenerateKeyFiles(KeygenOptions{
 		Algorithm: "ed25519",
 		OutPath:   dir,
 	})
@@ -129,7 +129,7 @@ func TestGenerateKeyFiles_Ed25519(t *testing.T) {
 
 func TestGenerateKeyFiles_WithCSR(t *testing.T) {
 	dir := t.TempDir()
-	err := GenerateKeyFiles(KeygenOptions{
+	_, err := GenerateKeyFiles(KeygenOptions{
 		Algorithm: "ecdsa",
 		Curve:     "P-256",
 		OutPath:   dir,
@@ -166,7 +166,7 @@ func TestGenerateKeyFiles_WithCSR(t *testing.T) {
 
 func TestGenerateKeyFiles_UnsupportedAlgorithm(t *testing.T) {
 	dir := t.TempDir()
-	err := GenerateKeyFiles(KeygenOptions{
+	_, err := GenerateKeyFiles(KeygenOptions{
 		Algorithm: "dsa",
 		OutPath:   dir,
 	})

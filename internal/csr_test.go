@@ -33,7 +33,7 @@ func TestGenerateCSRFiles_FromTemplate(t *testing.T) {
 	os.WriteFile(tmplPath, data, 0644)
 
 	outDir := filepath.Join(dir, "out")
-	err := GenerateCSRFiles(CSROptions{
+	_, err := GenerateCSRFiles(CSROptions{
 		TemplatePath: tmplPath,
 		Algorithm:    "ecdsa",
 		Curve:        "P-256",
@@ -86,7 +86,7 @@ func TestGenerateCSRFiles_FromCert(t *testing.T) {
 	os.WriteFile(certPath, []byte(certPEM), 0644)
 
 	outDir := filepath.Join(dir, "out")
-	err := GenerateCSRFiles(CSROptions{
+	_, err := GenerateCSRFiles(CSROptions{
 		CertPath:  certPath,
 		Algorithm: "ecdsa",
 		Curve:     "P-256",
@@ -122,7 +122,7 @@ func TestGenerateCSRFiles_FromCSR(t *testing.T) {
 	os.WriteFile(csrPath, csrPEMBytes, 0644)
 
 	outDir := filepath.Join(dir, "out")
-	err := GenerateCSRFiles(CSROptions{
+	_, err := GenerateCSRFiles(CSROptions{
 		CSRPath:   csrPath,
 		Algorithm: "ed25519",
 		OutPath:   outDir,
@@ -160,7 +160,7 @@ func TestGenerateCSRFiles_WithExistingKey(t *testing.T) {
 	os.WriteFile(tmplPath, data, 0644)
 
 	outDir := filepath.Join(dir, "out")
-	err := GenerateCSRFiles(CSROptions{
+	_, err := GenerateCSRFiles(CSROptions{
 		TemplatePath: tmplPath,
 		KeyPath:      keyPath,
 		OutPath:      outDir,
@@ -190,7 +190,7 @@ func TestGenerateCSRFiles_RSAKeyGen(t *testing.T) {
 	os.WriteFile(tmplPath, data, 0644)
 
 	outDir := filepath.Join(dir, "out")
-	err := GenerateCSRFiles(CSROptions{
+	_, err := GenerateCSRFiles(CSROptions{
 		TemplatePath: tmplPath,
 		Algorithm:    "rsa",
 		Bits:         2048,
@@ -207,7 +207,7 @@ func TestGenerateCSRFiles_RSAKeyGen(t *testing.T) {
 }
 
 func TestGenerateCSRFiles_NoInputError(t *testing.T) {
-	err := GenerateCSRFiles(CSROptions{
+	_, err := GenerateCSRFiles(CSROptions{
 		Algorithm: "ecdsa",
 		Curve:     "P-256",
 		OutPath:   t.TempDir(),
@@ -221,7 +221,7 @@ func TestGenerateCSRFiles_NoInputError(t *testing.T) {
 }
 
 func TestGenerateCSRFiles_MultipleInputError(t *testing.T) {
-	err := GenerateCSRFiles(CSROptions{
+	_, err := GenerateCSRFiles(CSROptions{
 		TemplatePath: "a.json",
 		CertPath:     "b.pem",
 		Algorithm:    "ecdsa",
