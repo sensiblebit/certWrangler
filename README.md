@@ -1,4 +1,4 @@
-# certWrangler
+# certkit
 
 A certificate management tool that ingests TLS/SSL certificates and private keys in various formats, catalogs them in a SQLite database, and exports organized bundles in multiple output formats.
 
@@ -18,7 +18,7 @@ A certificate management tool that ingests TLS/SSL certificates and private keys
 
 ```sh
 brew tap sensiblebit/tap
-brew install certwrangler
+brew install certkit
 ```
 
 ### From source
@@ -26,19 +26,13 @@ brew install certwrangler
 Requires Go 1.25+ and a C compiler (for SQLite via cgo).
 
 ```sh
-go build -o certwrangler main.go
-```
-
-Or use the included build script:
-
-```sh
-./tools/build.sh
+go build -o certkit ./cmd/certkit/
 ```
 
 ## Usage
 
 ```
-certwrangler -input <path> [flags]
+certkit -input <path> [flags]
 ```
 
 ### Flags
@@ -60,25 +54,25 @@ certwrangler -input <path> [flags]
 Ingest a directory of certificates and keys:
 
 ```sh
-./certwrangler -input ./certs/
+certkit -input ./certs/
 ```
 
 Ingest and export bundles with a persistent database:
 
 ```sh
-./certwrangler -input ./certs/ -export -db certs.db -out ./bundles
+certkit -input ./certs/ -export -db certs.db -out ./bundles
 ```
 
 Read from stdin:
 
 ```sh
-cat server.pem | ./certwrangler -input -
+cat server.pem | certkit -input -
 ```
 
 Provide passwords for encrypted PKCS#12 or PEM files:
 
 ```sh
-./certwrangler -input ./certs/ -passwords "secret1,secret2" -password-file extra_passwords.txt
+certkit -input ./certs/ -passwords "secret1,secret2" -password-file extra_passwords.txt
 ```
 
 ## Bundle Configuration
@@ -157,11 +151,34 @@ Input files/stdin
   Resolve AKIs (match legacy SHA-1 AKIs to computed RFC 7093 M1 SKIs)
        |
        v
-  [if -export] Match keys to certs, build chains via CFSSL,
+  [if -export] Match keys to certs, build chains via certkit,
   write all output formats per bundle
 ```
 
 Expired certificates are skipped during ingestion. Root certificates use their own Subject Key Identifier as their Authority Key Identifier (self-signed). Non-root certificate AKIs are resolved post-ingestion by matching embedded AKIs against a multi-hash lookup (RFC 7093 M1 SHA-256 + legacy SHA-1) of all CA certificates. Certificate-to-bundle matching is performed by comparing the certificate's Common Name against the `commonNames` list in each bundle configuration.
+
+## Library
+
+The `certkit` Go package provides reusable certificate utilities:
+
+```go
+import "github.com/sensiblebit/certkit"
+
+// Parse certificates and keys
+certs, _ := certkit.ParsePEMCertificates(pemData)
+key, _ := certkit.ParsePEMPrivateKey(keyPEM)
+
+// Compute identifiers
+fingerprint := certkit.CertFingerprint(cert)
+skid := certkit.CertSKID(cert)
+
+// Build verified chains
+bundle, _ := certkit.Bundle(leaf, certkit.DefaultOptions())
+
+// PKCS operations
+p12, _ := certkit.EncodePKCS12(key, leaf, intermediates, "password")
+p7, _ := certkit.EncodePKCS7(certs)
+```
 
 ## License
 

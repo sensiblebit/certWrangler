@@ -7,13 +7,14 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
-	"github.com/cloudflare/cfssl/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/jmoiron/sqlx/types"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/sensiblebit/certkit"
 )
 
 // DB represents the database connection.
@@ -65,7 +66,7 @@ func NewDB(dbPath string) (*DB, error) {
 		return nil, fmt.Errorf("failed to initialize schema: %w", err)
 	}
 
-	log.Debugf("Database initialized (path: %s)", connectionString)
+	slog.Debug(fmt.Sprintf("Database initialized (path: %s)", connectionString))
 
 	return dbObj, nil
 }
@@ -200,7 +201,7 @@ func (db *DB) ResolveAKIs() error {
 			continue
 		}
 
-		legacySKI, err := computeSKIDLegacy(cert.PublicKey)
+		legacySKI, err := certkit.ComputeSKIDLegacy(cert.PublicKey)
 		if err == nil {
 			legacyHex := hex.EncodeToString(legacySKI)
 			if _, exists := skiLookup[legacyHex]; !exists {
@@ -219,7 +220,7 @@ func (db *DB) ResolveAKIs() error {
 	for _, cert := range certs {
 		computedSKI, found := skiLookup[cert.AKI]
 		if !found {
-			log.Debugf("ResolveAKIs: no issuer found for cert %s (AKI=%s)", cert.Serial, cert.AKI)
+			slog.Debug(fmt.Sprintf("ResolveAKIs: no issuer found for cert %s (AKI=%s)", cert.Serial, cert.AKI))
 			continue
 		}
 
@@ -229,9 +230,9 @@ func (db *DB) ResolveAKIs() error {
 				computedSKI, cert.Serial, cert.AKI, cert.SubjectKeyIdentifier,
 			)
 			if err != nil {
-				log.Warningf("ResolveAKIs: failed to update AKI for cert %s: %v", cert.Serial, err)
+				slog.Warn(fmt.Sprintf("ResolveAKIs: failed to update AKI for cert %s: %v", cert.Serial, err))
 			} else {
-				log.Debugf("ResolveAKIs: updated AKI for cert %s from %s to %s", cert.Serial, cert.AKI, computedSKI)
+				slog.Debug(fmt.Sprintf("ResolveAKIs: updated AKI for cert %s from %s to %s", cert.Serial, cert.AKI, computedSKI))
 			}
 		}
 	}
@@ -242,9 +243,9 @@ func (db *DB) DumpDB() error {
 	// Helper function to print formatted headers
 	printHeader := func(title string) {
 		divider := strings.Repeat("=", 10)
-		log.Debugf(divider)
-		log.Debugf(title)
-		log.Debugf(divider)
+		slog.Debug(divider)
+		slog.Debug(title)
+		slog.Debug(divider)
 	}
 
 	// Print certificates
@@ -262,7 +263,7 @@ func (db *DB) DumpDB() error {
 		if err := rows.StructScan(&cert); err != nil {
 			return fmt.Errorf("failed to scan certificate: %w", err)
 		}
-		log.Debugf("Certificate Details:"+
+		slog.Debug(fmt.Sprintf("Certificate Details:"+
 			"\n\tSKI: %s"+
 			"\n\tCN: %s"+
 			"\n\tBundleName: %s"+
@@ -282,10 +283,10 @@ func (db *DB) DumpDB() error {
 			cert.KeyType,
 			formatSANs(cert.SANsJSON),
 			formatTimePtr(cert.NotBefore),
-			cert.Expiry)
+			cert.Expiry))
 		certCount++
 	}
-	log.Debugf("Total Certificates: %d", certCount)
+	slog.Debug(fmt.Sprintf("Total Certificates: %d", certCount))
 
 	// Print keys
 	printHeader("KEYS")
@@ -302,12 +303,12 @@ func (db *DB) DumpDB() error {
 		if err := rows.StructScan(&key); err != nil {
 			return fmt.Errorf("failed to scan key: %w", err)
 		}
-		log.Debugf("SKI: %s | Type: %s",
+		slog.Debug(fmt.Sprintf("SKI: %s | Type: %s",
 			key.SubjectKeyIdentifier,
-			strings.ToUpper(key.KeyType))
+			strings.ToUpper(key.KeyType)))
 		keyCount++
 	}
-	log.Debugf("Total Keys: %d", keyCount)
+	slog.Debug(fmt.Sprintf("Total Keys: %d", keyCount))
 
 	return nil
 }

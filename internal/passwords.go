@@ -2,10 +2,10 @@ package internal
 
 import (
 	"bufio"
+	"fmt"
+	"log/slog"
 	"os"
 	"strings"
-
-	"github.com/cloudflare/cfssl/log"
 )
 
 // LoadPasswordsFromFile loads passwords from a file, one password per line
@@ -47,7 +47,7 @@ func ProcessPasswords(passwordList string, passwordFile string) []string {
 	if passwordFile != "" {
 		filePasswords, err := LoadPasswordsFromFile(passwordFile)
 		if err != nil {
-			log.Errorf("Failed to load passwords from file: %v", err)
+			slog.Error(fmt.Sprintf("Failed to load passwords from file: %v", err))
 		} else {
 			passwords = append(passwords, filePasswords...)
 		}

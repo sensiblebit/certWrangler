@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx/types"
+	"github.com/sensiblebit/certkit"
 )
 
 func TestNewDB_InMemory(t *testing.T) {
@@ -285,9 +286,9 @@ func TestResolveAKIs_SameMethod(t *testing.T) {
 	defer db.Close()
 
 	// Compute RFC 7093 M1 SKIs
-	rootSKIDRaw, _ := computeSKID(ca.cert.PublicKey)
+	rootSKIDRaw, _ := certkit.ComputeSKID(ca.cert.PublicKey)
 	rootSKI := hex.EncodeToString(rootSKIDRaw)
-	leafSKIDRaw, _ := computeSKID(leaf.cert.PublicKey)
+	leafSKIDRaw, _ := certkit.ComputeSKID(leaf.cert.PublicKey)
 	leafSKI := hex.EncodeToString(leafSKIDRaw)
 
 	now := time.Now()
@@ -358,14 +359,14 @@ func TestResolveAKIs_CrossHash(t *testing.T) {
 	defer db.Close()
 
 	// Root's stored SKI is RFC 7093 M1
-	rootSKIDRaw, _ := computeSKID(ca.cert.PublicKey)
+	rootSKIDRaw, _ := certkit.ComputeSKID(ca.cert.PublicKey)
 	rootSKI := hex.EncodeToString(rootSKIDRaw)
 
 	// Leaf's AKI is SHA-1 of root's public key (legacy)
-	rootSKIDLegacy, _ := computeSKIDLegacy(ca.cert.PublicKey)
+	rootSKIDLegacy, _ := certkit.ComputeSKIDLegacy(ca.cert.PublicKey)
 	leafAKI := hex.EncodeToString(rootSKIDLegacy)
 
-	leafSKIDRaw, _ := computeSKID(leaf.cert.PublicKey)
+	leafSKIDRaw, _ := certkit.ComputeSKID(leaf.cert.PublicKey)
 	leafSKI := hex.EncodeToString(leafSKIDRaw)
 
 	// Sanity: the two should differ

@@ -2,27 +2,23 @@ package internal
 
 import (
 	"flag"
+	"fmt"
+	"log/slog"
 	"os"
-
-	"github.com/cloudflare/cfssl/log"
 )
 
-func parseLogLevel(level string) int {
+func parseLogLevel(level string) slog.Level {
 	switch level {
 	case "debug":
-		return log.LevelDebug
+		return slog.LevelDebug
 	case "info":
-		return log.LevelInfo
-	case "warning":
-		return log.LevelWarning
+		return slog.LevelInfo
+	case "warning", "warn":
+		return slog.LevelWarn
 	case "error":
-		return log.LevelError
-	case "critical":
-		return log.LevelCritical
-	case "fatal":
-		return log.LevelFatal
+		return slog.LevelError
 	default:
-		return log.LevelDebug // Default to debug level
+		return slog.LevelDebug
 	}
 }
 
@@ -42,14 +38,14 @@ func ParseFlags() *Config {
 	flag.Parse()
 
 	// Set up global logger
-	log.Level = parseLogLevel(logLevel)
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: parseLogLevel(logLevel)})))
 
 	cfg.Passwords = ProcessPasswords(passwordList, passwordFile)
 
 	// Initialize the database
 	db, err := NewDB(dbPath)
 	if err != nil {
-		log.Errorf("Failed to initialize database: %v", err)
+		slog.Error(fmt.Sprintf("Failed to initialize database: %v", err))
 		os.Exit(1)
 	}
 	cfg.DB = db
@@ -57,7 +53,7 @@ func ParseFlags() *Config {
 	// Load bundle configurations
 	bundleConfigs, err := LoadBundleConfigs(bundlesConfigPath)
 	if err != nil {
-		log.Warningf("Failed to load bundle configurations: %v", err)
+		slog.Warn(fmt.Sprintf("Failed to load bundle configurations: %v", err))
 		bundleConfigs = []BundleConfig{}
 	}
 	cfg.BundleConfigs = bundleConfigs
@@ -67,12 +63,15 @@ func ParseFlags() *Config {
 		// stdin mode, no validation needed
 	} else if cfg.InputPath == "" {
 		flag.Usage()
-		log.Fatal("No input path specified")
+		slog.Error("No input path specified")
+		os.Exit(1)
 	} else if _, err := os.Stat(cfg.InputPath); err != nil {
 		if os.IsNotExist(err) {
-			log.Fatalf("Input path %s does not exist", cfg.InputPath)
+			slog.Error(fmt.Sprintf("Input path %s does not exist", cfg.InputPath))
+			os.Exit(1)
 		}
-		log.Fatalf("Error accessing input path %s: %v", cfg.InputPath, err)
+		slog.Error(fmt.Sprintf("Error accessing input path %s: %v", cfg.InputPath, err))
+		os.Exit(1)
 	}
 	return cfg
 }

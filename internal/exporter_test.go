@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cloudflare/cfssl/bundler"
+	"github.com/sensiblebit/certkit"
 	"github.com/jmoiron/sqlx/types"
 	"gopkg.in/yaml.v3"
 )
@@ -76,18 +76,12 @@ func TestFormatKeyAlgorithm_Unknown(t *testing.T) {
 	}
 }
 
-func newTestBundle(t *testing.T, leaf testLeaf, ca testCA) *bundler.Bundle {
+func newTestBundle(t *testing.T, leaf testLeaf, ca testCA) *certkit.BundleResult {
 	t.Helper()
-	return &bundler.Bundle{
-		Chain:       []*x509.Certificate{leaf.cert, ca.cert},
-		Cert:        leaf.cert,
-		Root:        ca.cert,
-		Expires:     leaf.cert.NotAfter,
-		LeafExpires: leaf.cert.NotAfter,
-		Hostnames:   leaf.cert.DNSNames,
-		Issuer:      &ca.cert.Subject,
-		Subject:     &leaf.cert.Subject,
-		Status:      &bundler.BundleStatus{},
+	return &certkit.BundleResult{
+		Leaf:          leaf.cert,
+		Intermediates: []*x509.Certificate{ca.cert},
+		Roots:         []*x509.Certificate{ca.cert},
 	}
 }
 
