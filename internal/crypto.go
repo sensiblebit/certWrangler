@@ -187,7 +187,11 @@ func processPEMPrivateKeys(data []byte, path string, cfg *Config) {
 			rec.PublicExponent = k.E
 			rec.Modulus = k.N.String()
 		case *ecdsa.PrivateKey:
-			keyBytes, _ := x509.MarshalECPrivateKey(k)
+			keyBytes, err := x509.MarshalECPrivateKey(k)
+			if err != nil {
+				slog.Debug("Failed to marshal ECDSA private key", "path", path, "error", err)
+				continue
+			}
 			rec.KeyData = pem.EncodeToMemory(&pem.Block{
 				Type:  "EC PRIVATE KEY",
 				Bytes: keyBytes,
@@ -196,7 +200,11 @@ func processPEMPrivateKeys(data []byte, path string, cfg *Config) {
 			rec.Curve = k.Curve.Params().Name
 			rec.BitLength = k.Curve.Params().BitSize
 		case ed25519.PrivateKey:
-			keyBytes, _ := x509.MarshalPKCS8PrivateKey(k)
+			keyBytes, err := x509.MarshalPKCS8PrivateKey(k)
+			if err != nil {
+				slog.Debug("Failed to marshal Ed25519 private key", "path", path, "error", err)
+				continue
+			}
 			rec.KeyData = pem.EncodeToMemory(&pem.Block{
 				Type:  "PRIVATE KEY",
 				Bytes: keyBytes,

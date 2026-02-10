@@ -20,7 +20,10 @@ var keygenCmd = &cobra.Command{
 	Use:   "keygen",
 	Short: "Generate keys and optionally CSRs",
 	Long:  "Generate a new key pair (RSA, ECDSA, or Ed25519) and optionally a Certificate Signing Request.",
-	Args:  cobra.NoArgs,
+	Example: `  certkit keygen
+  certkit keygen --algorithm rsa --bits 2048 -o ./keys
+  certkit keygen --cn example.com --sans example.com,www.example.com`,
+	Args: cobra.NoArgs,
 	RunE:  runKeygen,
 }
 

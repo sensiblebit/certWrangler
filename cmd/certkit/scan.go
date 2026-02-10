@@ -24,7 +24,11 @@ var scanCmd = &cobra.Command{
 	Use:   "scan <path>",
 	Short: "Scan and catalog certificates and keys",
 	Long:  "Scan a file or directory for certificates, keys, and CSRs. Prints a summary of what was found. Use --export to also export bundles.",
-	Args:  cobra.ExactArgs(1),
+	Example: `  certkit scan /path/to/certs
+  certkit scan cert.pem
+  cat cert.pem | certkit scan -
+  certkit scan /path/to/certs --export -c bundles.yaml -o ./out`,
+	Args: cobra.ExactArgs(1),
 	RunE:  runScan,
 }
 

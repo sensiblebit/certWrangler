@@ -13,7 +13,10 @@ var inspectCmd = &cobra.Command{
 	Use:   "inspect <file>",
 	Short: "Display certificate, key, or CSR information",
 	Long:  "Show detailed information about certificates, private keys, or CSRs in a file (similar to openssl x509 -text).",
-	Args:  cobra.ExactArgs(1),
+	Example: `  certkit inspect cert.pem
+  certkit inspect key.pem
+  certkit inspect cert.pem --format json`,
+	Args: cobra.ExactArgs(1),
 	RunE:  runInspect,
 }
 

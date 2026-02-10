@@ -31,6 +31,10 @@ and verifies against the system trust store. Outputs the chain in PEM format
 When a key is provided (via --key or embedded in a PKCS#12/JKS file), the
 matching certificate is automatically selected as the leaf. Remaining
 certificates are used as extra intermediates for chain building.`,
+	Example: `  certkit bundle cert.pem
+  certkit bundle cert.pem --key key.pem --format p12 -o bundle.p12
+  certkit bundle store.p12 --format fullchain
+  certkit bundle certs.jks --trust-store system`,
 	Args: cobra.ExactArgs(1),
 	RunE: runBundle,
 }
