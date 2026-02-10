@@ -48,7 +48,7 @@ func DefaultOptions() BundleOptions {
 
 // FetchLeafFromURL connects to the given HTTPS URL via TLS and returns the
 // leaf (server) certificate from the handshake.
-func FetchLeafFromURL(rawURL string, timeoutMs int) (*x509.Certificate, error) {
+func FetchLeafFromURL(ctx context.Context, rawURL string, timeoutMs int) (*x509.Certificate, error) {
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
 		return nil, fmt.Errorf("parsing URL: %w", err)
@@ -69,7 +69,7 @@ func FetchLeafFromURL(rawURL string, timeoutMs int) (*x509.Certificate, error) {
 		Timeout: time.Duration(timeoutMs) * time.Millisecond,
 	}
 
-	conn, err := dialer.DialContext(context.Background(), "tcp", net.JoinHostPort(host, port))
+	conn, err := dialer.DialContext(ctx, "tcp", net.JoinHostPort(host, port))
 	if err != nil {
 		return nil, fmt.Errorf("TLS dial to %s:%s: %w", host, port, err)
 	}
@@ -84,7 +84,7 @@ func FetchLeafFromURL(rawURL string, timeoutMs int) (*x509.Certificate, error) {
 }
 
 // FetchAIACertificates follows AIA CA Issuers URLs to fetch intermediate certificates.
-func FetchAIACertificates(cert *x509.Certificate, timeoutMs int, maxDepth int) ([]*x509.Certificate, []string) {
+func FetchAIACertificates(ctx context.Context, cert *x509.Certificate, timeoutMs int, maxDepth int) ([]*x509.Certificate, []string) {
 	var fetched []*x509.Certificate
 	var warnings []string
 
@@ -102,7 +102,7 @@ func FetchAIACertificates(cert *x509.Certificate, timeoutMs int, maxDepth int) (
 			}
 			seen[aiaURL] = true
 
-			issuer, err := fetchCertFromURL(client, aiaURL)
+			issuer, err := fetchCertFromURL(ctx, client, aiaURL)
 			if err != nil {
 				warnings = append(warnings, fmt.Sprintf("AIA fetch failed for %s: %v", aiaURL, err))
 				continue
@@ -115,8 +115,12 @@ func FetchAIACertificates(cert *x509.Certificate, timeoutMs int, maxDepth int) (
 }
 
 // fetchCertFromURL fetches a single certificate (DER or PEM) from a URL.
-func fetchCertFromURL(client *http.Client, certURL string) (*x509.Certificate, error) {
-	resp, err := client.Get(certURL)
+func fetchCertFromURL(ctx context.Context, client *http.Client, certURL string) (*x509.Certificate, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, certURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -206,7 +210,7 @@ func checkExpiryWarnings(chain []*x509.Certificate) []string {
 }
 
 // Bundle resolves the full certificate chain for a leaf certificate.
-func Bundle(leaf *x509.Certificate, opts BundleOptions) (*BundleResult, error) {
+func Bundle(ctx context.Context, leaf *x509.Certificate, opts BundleOptions) (*BundleResult, error) {
 	// Detect reversed chain order
 	var swapWarnings []string
 	leaf, opts.ExtraIntermediates, swapWarnings = detectAndSwapLeaf(leaf, opts.ExtraIntermediates)
@@ -224,7 +228,7 @@ func Bundle(leaf *x509.Certificate, opts BundleOptions) (*BundleResult, error) {
 	}
 
 	if opts.FetchAIA {
-		aiaCerts, warnings := FetchAIACertificates(leaf, opts.AIATimeoutMs, opts.AIAMaxDepth)
+		aiaCerts, warnings := FetchAIACertificates(ctx, leaf, opts.AIATimeoutMs, opts.AIAMaxDepth)
 		result.Warnings = append(result.Warnings, warnings...)
 		for _, cert := range aiaCerts {
 			intermediatePool.AddCert(cert)

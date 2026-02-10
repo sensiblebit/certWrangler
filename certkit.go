@@ -251,22 +251,12 @@ func PublicKeyAlgorithmName(key crypto.PublicKey) string {
 // ColonHex formats a byte slice as colon-separated lowercase hex.
 func ColonHex(b []byte) string {
 	h := hex.EncodeToString(b)
-	var parts []string
+	parts := make([]string, 0, len(h)/2)
 	for i := 0; i < len(h); i += 2 {
-		end := i + 2
-		if end > len(h) {
-			end = len(h)
-		}
+		end := min(i+2, len(h))
 		parts = append(parts, h[i:end])
 	}
-	result := ""
-	for i, p := range parts {
-		if i > 0 {
-			result += ":"
-		}
-		result += p
-	}
-	return result
+	return strings.Join(parts, ":")
 }
 
 // extractPublicKeyBitString parses a DER-encoded SubjectPublicKeyInfo and

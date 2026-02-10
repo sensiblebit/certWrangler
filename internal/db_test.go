@@ -161,14 +161,14 @@ func TestInsertDuplicateKey_NilError(t *testing.T) {
 	}
 }
 
-func TestGetCertBySKI_NotFound(t *testing.T) {
+func TestGetCertBySKID_NotFound(t *testing.T) {
 	db, err := NewDB("")
 	if err != nil {
 		t.Fatalf("NewDB: %v", err)
 	}
 	defer db.Close()
 
-	cert, err := db.GetCertBySKI("nonexistent")
+	cert, err := db.GetCertBySKID("nonexistent")
 	if err != nil {
 		t.Errorf("expected nil error for not found, got: %v", err)
 	}

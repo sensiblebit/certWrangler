@@ -1,6 +1,7 @@
 package certkit
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -54,7 +55,7 @@ func TestBundle_customRoots(t *testing.T) {
 	leafBytes, _ := x509.CreateCertificate(rand.Reader, leafTemplate, intCert, &leafKey.PublicKey, intKey)
 	leafCert, _ := x509.ParseCertificate(leafBytes)
 
-	result, err := Bundle(leafCert, BundleOptions{
+	result, err := Bundle(context.Background(), leafCert, BundleOptions{
 		ExtraIntermediates: []*x509.Certificate{intCert},
 		FetchAIA:           false,
 		TrustStore:         "custom",
@@ -81,12 +82,12 @@ func TestBundle_customRoots(t *testing.T) {
 }
 
 func TestBundle_mozillaRoots(t *testing.T) {
-	leaf, err := FetchLeafFromURL("https://google.com", 5000)
+	leaf, err := FetchLeafFromURL(context.Background(), "https://google.com", 5000)
 	if err != nil {
 		t.Skipf("cannot connect to google.com: %v", err)
 	}
 
-	result, err := Bundle(leaf, BundleOptions{
+	result, err := Bundle(context.Background(), leaf, BundleOptions{
 		FetchAIA:     true,
 		AIATimeoutMs: 5000,
 		AIAMaxDepth:  5,
@@ -117,7 +118,7 @@ func TestBundle_verifyFails(t *testing.T) {
 	certBytes, _ := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
 	cert, _ := x509.ParseCertificate(certBytes)
 
-	_, err := Bundle(cert, BundleOptions{
+	_, err := Bundle(context.Background(), cert, BundleOptions{
 		FetchAIA:   false,
 		TrustStore: "custom",
 		Verify:     true,
@@ -153,7 +154,7 @@ func TestBundle_twoCertChain(t *testing.T) {
 	leafBytes, _ := x509.CreateCertificate(rand.Reader, leafTemplate, caCert, &leafKey.PublicKey, caKey)
 	leafCert, _ := x509.ParseCertificate(leafBytes)
 
-	result, err := Bundle(leafCert, BundleOptions{
+	result, err := Bundle(context.Background(), leafCert, BundleOptions{
 		FetchAIA:    false,
 		TrustStore:  "custom",
 		CustomRoots: []*x509.Certificate{caCert},
@@ -185,7 +186,7 @@ func TestBundle_unknownTrustStore(t *testing.T) {
 	certBytes, _ := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
 	cert, _ := x509.ParseCertificate(certBytes)
 
-	_, err := Bundle(cert, BundleOptions{
+	_, err := Bundle(context.Background(), cert, BundleOptions{
 		FetchAIA:   false,
 		TrustStore: "invalid",
 		Verify:     true,
@@ -222,7 +223,7 @@ func TestBundle_verifyFalsePassthrough(t *testing.T) {
 	leafBytes, _ := x509.CreateCertificate(rand.Reader, leafTemplate, caCert, &leafKey.PublicKey, caKey)
 	leafCert, _ := x509.ParseCertificate(leafBytes)
 
-	result, err := Bundle(leafCert, BundleOptions{
+	result, err := Bundle(context.Background(), leafCert, BundleOptions{
 		ExtraIntermediates: []*x509.Certificate{caCert},
 		FetchAIA:           false,
 		TrustStore:         "custom",
@@ -241,7 +242,7 @@ func TestBundle_verifyFalsePassthrough(t *testing.T) {
 }
 
 func TestFetchLeafFromURL(t *testing.T) {
-	cert, err := FetchLeafFromURL("https://google.com", 5000)
+	cert, err := FetchLeafFromURL(context.Background(), "https://google.com", 5000)
 	if err != nil {
 		t.Skipf("cannot connect to google.com: %v", err)
 	}
@@ -254,7 +255,7 @@ func TestFetchLeafFromURL(t *testing.T) {
 }
 
 func TestFetchLeafFromURL_withPort(t *testing.T) {
-	cert, err := FetchLeafFromURL("https://google.com:443", 5000)
+	cert, err := FetchLeafFromURL(context.Background(), "https://google.com:443", 5000)
 	if err != nil {
 		t.Skipf("cannot connect to google.com:443: %v", err)
 	}
@@ -264,14 +265,14 @@ func TestFetchLeafFromURL_withPort(t *testing.T) {
 }
 
 func TestFetchLeafFromURL_badHost(t *testing.T) {
-	_, err := FetchLeafFromURL("https://this-does-not-exist.invalid", 2000)
+	_, err := FetchLeafFromURL(context.Background(), "https://this-does-not-exist.invalid", 2000)
 	if err == nil {
 		t.Error("expected error for non-existent host")
 	}
 }
 
 func TestFetchLeafFromURL_invalidURL(t *testing.T) {
-	_, err := FetchLeafFromURL("://bad", 2000)
+	_, err := FetchLeafFromURL(context.Background(), "://bad", 2000)
 	if err == nil {
 		t.Error("expected error for invalid URL")
 	}
@@ -287,7 +288,7 @@ func TestFetchCertFromURL_http404(t *testing.T) {
 	defer srv.Close()
 
 	client := srv.Client()
-	_, err := fetchCertFromURL(client, srv.URL)
+	_, err := fetchCertFromURL(context.Background(), client, srv.URL)
 	if err == nil {
 		t.Error("expected error for HTTP 404")
 	}
@@ -312,7 +313,7 @@ func TestFetchCertFromURL_DER(t *testing.T) {
 	defer srv.Close()
 
 	client := srv.Client()
-	cert, err := fetchCertFromURL(client, srv.URL)
+	cert, err := fetchCertFromURL(context.Background(), client, srv.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -338,7 +339,7 @@ func TestFetchCertFromURL_PEM(t *testing.T) {
 	defer srv.Close()
 
 	client := srv.Client()
-	cert, err := fetchCertFromURL(client, srv.URL)
+	cert, err := fetchCertFromURL(context.Background(), client, srv.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -354,7 +355,7 @@ func TestFetchCertFromURL_garbage(t *testing.T) {
 	defer srv.Close()
 
 	client := srv.Client()
-	_, err := fetchCertFromURL(client, srv.URL)
+	_, err := fetchCertFromURL(context.Background(), client, srv.URL)
 	if err == nil {
 		t.Error("expected error for garbage body")
 	}
@@ -375,7 +376,7 @@ func TestFetchAIACertificates_maxDepthZero(t *testing.T) {
 	certBytes, _ := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
 	cert, _ := x509.ParseCertificate(certBytes)
 
-	fetched, warnings := FetchAIACertificates(cert, 1000, 0)
+	fetched, warnings := FetchAIACertificates(context.Background(), cert,1000, 0)
 	if len(fetched) != 0 {
 		t.Errorf("expected 0 fetched certs with maxDepth=0, got %d", len(fetched))
 	}
@@ -413,7 +414,7 @@ func TestDetectAndSwapLeaf_ReversedChain(t *testing.T) {
 	leafCert, _ := x509.ParseCertificate(leafBytes)
 
 	// Pass CA as "leaf" and real leaf as extra — reversed order
-	result, err := Bundle(caCert, BundleOptions{
+	result, err := Bundle(context.Background(), caCert, BundleOptions{
 		ExtraIntermediates: []*x509.Certificate{leafCert},
 		FetchAIA:           false,
 		TrustStore:         "custom",
@@ -466,7 +467,7 @@ func TestDetectAndSwapLeaf_NoSwapWhenLeafIsCorrect(t *testing.T) {
 	leafCert, _ := x509.ParseCertificate(leafBytes)
 
 	// Correct order — leaf first
-	result, err := Bundle(leafCert, BundleOptions{
+	result, err := Bundle(context.Background(), leafCert, BundleOptions{
 		ExtraIntermediates: []*x509.Certificate{caCert},
 		FetchAIA:           false,
 		TrustStore:         "custom",
@@ -595,7 +596,7 @@ func TestFetchAIACertificates_duplicateURLs(t *testing.T) {
 	leafBytes, _ := x509.CreateCertificate(rand.Reader, leafTemplate, issuerCert, &leafKey.PublicKey, issuerKey)
 	leafCert, _ := x509.ParseCertificate(leafBytes)
 
-	fetched, _ := FetchAIACertificates(leafCert, 2000, 5)
+	fetched, _ := FetchAIACertificates(context.Background(), leafCert,2000, 5)
 	if len(fetched) != 1 {
 		t.Errorf("expected 1 fetched cert (deduped), got %d", len(fetched))
 	}

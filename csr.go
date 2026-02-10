@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"strings"
 )
 
 // GenerateCSR creates a Certificate Signing Request that copies Subject, DNSNames,
@@ -102,22 +103,13 @@ func ClassifyHosts(hosts []string) (dnsNames []string, ips []net.IP, uris []*url
 			ips = append(ips, ip)
 		} else if parsed, err := url.Parse(h); err == nil && parsed.Scheme != "" && parsed.Host != "" {
 			uris = append(uris, parsed)
-		} else if len(h) > 0 && contains(h, "@") {
+		} else if len(h) > 0 && strings.Contains(h, "@") {
 			emails = append(emails, h)
 		} else {
 			dnsNames = append(dnsNames, h)
 		}
 	}
 	return
-}
-
-func contains(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }
 
 // GenerateCSRFromTemplate creates a PEM-encoded CSR from a template and signer.

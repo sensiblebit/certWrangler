@@ -302,9 +302,9 @@ func TestProcessFile_PEMCertificate(t *testing.T) {
 	expectedSKI := computeSKIDHex(t, leaf.cert.PublicKey)
 
 	// Verify certificate was inserted with computed SKI
-	cert, err := cfg.DB.GetCertBySKI(expectedSKI)
+	cert, err := cfg.DB.GetCertBySKID(expectedSKI)
 	if err != nil {
-		t.Fatalf("GetCertBySKI: %v", err)
+		t.Fatalf("GetCertBySKID: %v", err)
 	}
 	if cert == nil {
 		t.Error("expected certificate to be inserted into DB")
@@ -353,9 +353,9 @@ func TestProcessFile_DERCertificate(t *testing.T) {
 	}
 
 	expectedSKI := computeSKIDHex(t, leaf.cert.PublicKey)
-	cert, err := cfg.DB.GetCertBySKI(expectedSKI)
+	cert, err := cfg.DB.GetCertBySKID(expectedSKI)
 	if err != nil {
-		t.Fatalf("GetCertBySKI: %v", err)
+		t.Fatalf("GetCertBySKID: %v", err)
 	}
 	if cert == nil {
 		t.Error("expected DER certificate to be inserted into DB")
@@ -438,9 +438,9 @@ func TestProcessFile_JKS(t *testing.T) {
 	}
 
 	expectedSKI := computeSKIDHex(t, leaf.cert.PublicKey)
-	cert, err := cfg.DB.GetCertBySKI(expectedSKI)
+	cert, err := cfg.DB.GetCertBySKID(expectedSKI)
 	if err != nil {
-		t.Fatalf("GetCertBySKI: %v", err)
+		t.Fatalf("GetCertBySKID: %v", err)
 	}
 	if cert == nil {
 		t.Error("expected leaf certificate from JKS to be inserted into DB")
@@ -464,7 +464,7 @@ func TestProcessFile_ExpiredCertSkipped(t *testing.T) {
 	}
 
 	expectedSKI := computeSKIDHex(t, expired.cert.PublicKey)
-	cert, _ := cfg.DB.GetCertBySKI(expectedSKI)
+	cert, _ := cfg.DB.GetCertBySKID(expectedSKI)
 	if cert != nil {
 		t.Error("expired certificate should not be inserted into DB")
 	}
@@ -536,7 +536,7 @@ func TestProcessFile_MultipleCertsInOneFile(t *testing.T) {
 
 	// Both certs should be in DB - look up by computed SKI from public key
 	ski1 := computeSKIDHex(t, leaf1.cert.PublicKey)
-	c1, _ := cfg.DB.GetCertBySKI(ski1)
+	c1, _ := cfg.DB.GetCertBySKID(ski1)
 	if c1 == nil {
 		t.Error("expected first certificate to be in DB")
 	}
@@ -544,7 +544,7 @@ func TestProcessFile_MultipleCertsInOneFile(t *testing.T) {
 	// For the second cert, compute SKI from its public key
 	cert2, _ := x509.ParseCertificate(cert2DER)
 	ski2 := computeSKIDHex(t, cert2.PublicKey)
-	c2, _ := cfg.DB.GetCertBySKI(ski2)
+	c2, _ := cfg.DB.GetCertBySKID(ski2)
 	if c2 == nil {
 		t.Error("expected second certificate to be in DB")
 	}
@@ -605,7 +605,7 @@ func TestProcessFile_PEMCertificateWithIP(t *testing.T) {
 	}
 
 	expectedSKI := computeSKIDHex(t, leaf.cert.PublicKey)
-	cert, _ := cfg.DB.GetCertBySKI(expectedSKI)
+	cert, _ := cfg.DB.GetCertBySKID(expectedSKI)
 	if cert == nil {
 		t.Error("expected cert with IP SAN to be inserted")
 	}

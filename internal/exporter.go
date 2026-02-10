@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/rsa"
@@ -431,14 +432,14 @@ func formatKeyAlgorithm(pub any) string {
 // ExportBundles iterates over all key records in the database, finds the matching
 // certificate record, builds a certificate bundle using certkit.Bundle, and writes out
 // the bundle files into a folder.
-func ExportBundles(cfgs []BundleConfig, outDir string, db *DB, forceBundle bool) error {
+func ExportBundles(cfgs []BundleConfig, outDir string, db *DB, forceBundle bool, duplicates bool) error {
 	keys, err := db.GetAllKeys()
 	if err != nil {
 		return fmt.Errorf("failed to get keys: %v", err)
 	}
 
 	for _, key := range keys {
-		cert, err := db.GetCertBySKI(key.SubjectKeyIdentifier)
+		cert, err := db.GetCertBySKID(key.SubjectKeyIdentifier)
 		if err != nil || cert == nil {
 			continue
 		}
@@ -453,14 +454,14 @@ func ExportBundles(cfgs []BundleConfig, outDir string, db *DB, forceBundle bool)
 			opts.Verify = false
 		}
 
-		exportBundleCerts(db, opts, cfgs, outDir, bundleName, key)
+		exportBundleCerts(db, opts, cfgs, outDir, bundleName, key, duplicates)
 	}
 	return nil
 }
 
 // exportBundleCerts processes all certificates for a given bundle name, creating
 // output folders and writing bundle files for each one.
-func exportBundleCerts(db *DB, opts certkit.BundleOptions, cfgs []BundleConfig, outDir, bundleName string, key KeyRecord) {
+func exportBundleCerts(db *DB, opts certkit.BundleOptions, cfgs []BundleConfig, outDir, bundleName string, key KeyRecord, duplicates bool) {
 	var certs []CertificateRecord
 	err := db.Select(&certs, `
 		SELECT c.*
@@ -471,13 +472,13 @@ func exportBundleCerts(db *DB, opts certkit.BundleOptions, cfgs []BundleConfig, 
 		ORDER BY c.expiry DESC
 		`, bundleName)
 	if err != nil {
-		slog.Error(fmt.Sprintf("Failed to retrieve certificates for bundle name %s: %v", bundleName, err))
+		slog.Error("Failed to retrieve certificates for bundle", "bundle", bundleName, "error", err)
 		return
 	}
 
-	slog.Debug(fmt.Sprintf("Found %d certificates for bundle name %s", len(certs), bundleName))
+	slog.Debug("Found certificates for bundle", "count", len(certs), "bundle", bundleName)
 	for _, cert := range certs {
-		slog.Debug(fmt.Sprintf("  %s (serial: %s, expiry: %s)", cert.CommonName.String, cert.Serial, cert.Expiry.Format(time.RFC3339)))
+		slog.Debug("Certificate in bundle", "cn", cert.CommonName.String, "serial", cert.Serial, "expiry", cert.Expiry.Format(time.RFC3339))
 	}
 
 	// Find the matching bundle configuration once (invariant across certs)
@@ -493,32 +494,36 @@ func exportBundleCerts(db *DB, opts certkit.BundleOptions, cfgs []BundleConfig, 
 		var bundleFolder string
 		if i == 0 {
 			bundleFolder = bundleName
-			slog.Debug(fmt.Sprintf("Using base name %s for newest certificate (CN=%s)", bundleName, bundleCert.CommonName.String))
+			slog.Debug("Using base name for newest certificate", "bundle", bundleName, "cn", bundleCert.CommonName.String)
 		} else {
+			if !duplicates {
+				slog.Debug("Skipping older certificate (use --duplicates to export)", "bundle", bundleName, "serial", bundleCert.Serial, "expiry", bundleCert.Expiry.Format(time.RFC3339))
+				continue
+			}
 			expirationDate := bundleCert.Expiry.Format("2006-01-02")
 			bundleFolder = fmt.Sprintf("%s_%s_%s", bundleName, expirationDate, bundleCert.Serial)
-			slog.Debug(fmt.Sprintf("Using %s for older certificate (newest is %s, CN=%s)", bundleFolder, certs[0].Serial, bundleCert.CommonName.String))
+			slog.Debug("Using folder for older certificate", "folder", bundleFolder, "newest_serial", certs[0].Serial, "cn", bundleCert.CommonName.String)
 		}
 
 		// Parse the leaf certificate from PEM
 		leaf, err := certkit.ParsePEMCertificate([]byte(bundleCert.PEM))
 		if err != nil {
-			slog.Warn(fmt.Sprintf("Failed to parse cert PEM for %s: %v", bundleCert.Serial, err))
+			slog.Warn("Failed to parse cert PEM", "serial", bundleCert.Serial, "error", err)
 			continue
 		}
 
-		bundle, err := certkit.Bundle(leaf, opts)
+		bundle, err := certkit.Bundle(context.Background(), leaf, opts)
 		if err != nil {
-			slog.Warn(fmt.Sprintf("Failed to bundle cert %s: %v", bundleCert.Serial, err))
+			slog.Warn("Failed to bundle cert", "serial", bundleCert.Serial, "error", err)
 			continue
 		}
 
 		if err := writeBundleFiles(outDir, bundleFolder, &bundleCert, &key, bundle, matchingConfig); err != nil {
-			slog.Warn(fmt.Sprintf("Failed to write bundle files for cert %s: %v", bundleCert.Serial, err))
+			slog.Warn("Failed to write bundle files", "serial", bundleCert.Serial, "error", err)
 			continue
 		}
-		slog.Info(fmt.Sprintf("Exported bundle for %s into folder %s/%s", bundleCert.CommonName.String, outDir, bundleFolder))
-		slog.Debug(fmt.Sprintf("  %s (serial: %s, expiry: %s)", bundleCert.CommonName.String, bundleCert.Serial, bundleCert.Expiry.Format(time.RFC3339)))
+		slog.Info("Exported bundle", "cn", bundleCert.CommonName.String, "dir", outDir, "folder", bundleFolder)
+		slog.Debug("Exported certificate details", "cn", bundleCert.CommonName.String, "serial", bundleCert.Serial, "expiry", bundleCert.Expiry.Format(time.RFC3339))
 	}
 }
 

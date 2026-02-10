@@ -32,15 +32,15 @@ func (db *DB) GetAllKeys() ([]KeyRecord, error) {
 	return keys, nil
 }
 
-// GetCertBySKI returns the certificate record matching the given subject key identifier.
-func (db *DB) GetCertBySKI(skid string) (*CertificateRecord, error) {
+// GetCertBySKID returns the certificate record matching the given subject key identifier.
+func (db *DB) GetCertBySKID(skid string) (*CertificateRecord, error) {
 	var cert CertificateRecord
 	err := db.Get(&cert, "SELECT * FROM certificates WHERE subject_key_identifier = ?", skid)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("failed to get certificate by SKI: %w", err)
+		return nil, fmt.Errorf("failed to get certificate by SKID: %w", err)
 	}
 	return &cert, nil
 }
@@ -66,7 +66,7 @@ func NewDB(dbPath string) (*DB, error) {
 		return nil, fmt.Errorf("failed to initialize schema: %w", err)
 	}
 
-	slog.Debug(fmt.Sprintf("Database initialized (path: %s)", connectionString))
+	slog.Debug("Database initialized", "path", connectionString)
 
 	return dbObj, nil
 }
@@ -185,13 +185,13 @@ func (db *DB) ResolveAKIs() error {
 		return fmt.Errorf("failed to select issuer certificates: %w", err)
 	}
 
-	// Build lookup: various SKI hex values → issuer's computed RFC 7093 M1 SKI
-	skiLookup := make(map[string]string) // akiHex → issuer's computed SKI
+	// Build lookup: various SKID hex values → issuer's computed RFC 7093 M1 SKID
+	skidLookup := make(map[string]string) // akiHex → issuer's computed SKID
 	for _, issuer := range issuers {
-		// The computed RFC 7093 M1 SKI is already stored
-		skiLookup[issuer.SubjectKeyIdentifier] = issuer.SubjectKeyIdentifier
+		// The computed RFC 7093 M1 SKID is already stored
+		skidLookup[issuer.SubjectKeyIdentifier] = issuer.SubjectKeyIdentifier
 
-		// Parse PEM to compute legacy SHA-1 SKI for cross-matching
+		// Parse PEM to compute legacy SHA-1 SKID for cross-matching
 		block, _ := pem.Decode([]byte(issuer.PEM))
 		if block == nil {
 			continue
@@ -201,11 +201,11 @@ func (db *DB) ResolveAKIs() error {
 			continue
 		}
 
-		legacySKI, err := certkit.ComputeSKIDLegacy(cert.PublicKey)
+		legacySKID, err := certkit.ComputeSKIDLegacy(cert.PublicKey)
 		if err == nil {
-			legacyHex := hex.EncodeToString(legacySKI)
-			if _, exists := skiLookup[legacyHex]; !exists {
-				skiLookup[legacyHex] = issuer.SubjectKeyIdentifier
+			legacyHex := hex.EncodeToString(legacySKID)
+			if _, exists := skidLookup[legacyHex]; !exists {
+				skidLookup[legacyHex] = issuer.SubjectKeyIdentifier
 			}
 		}
 	}
@@ -218,21 +218,21 @@ func (db *DB) ResolveAKIs() error {
 	}
 
 	for _, cert := range certs {
-		computedSKI, found := skiLookup[cert.AKI]
+		computedSKID, found := skidLookup[cert.AKI]
 		if !found {
-			slog.Debug(fmt.Sprintf("ResolveAKIs: no issuer found for cert %s (AKI=%s)", cert.Serial, cert.AKI))
+			slog.Debug("ResolveAKIs: no issuer found", "serial", cert.Serial, "aki", cert.AKI)
 			continue
 		}
 
-		if cert.AKI != computedSKI {
+		if cert.AKI != computedSKID {
 			_, err = db.Exec(
 				"UPDATE certificates SET authority_key_identifier = ? WHERE serial_number = ? AND authority_key_identifier = ? AND subject_key_identifier = ?",
-				computedSKI, cert.Serial, cert.AKI, cert.SubjectKeyIdentifier,
+				computedSKID, cert.Serial, cert.AKI, cert.SubjectKeyIdentifier,
 			)
 			if err != nil {
-				slog.Warn(fmt.Sprintf("ResolveAKIs: failed to update AKI for cert %s: %v", cert.Serial, err))
+				slog.Warn("ResolveAKIs: failed to update AKI", "serial", cert.Serial, "error", err)
 			} else {
-				slog.Debug(fmt.Sprintf("ResolveAKIs: updated AKI for cert %s from %s to %s", cert.Serial, cert.AKI, computedSKI))
+				slog.Debug("ResolveAKIs: updated AKI", "serial", cert.Serial, "old_aki", cert.AKI, "new_aki", computedSKID)
 			}
 		}
 	}
@@ -296,30 +296,20 @@ func (db *DB) DumpDB() error {
 		if err := rows.StructScan(&cert); err != nil {
 			return fmt.Errorf("failed to scan certificate: %w", err)
 		}
-		slog.Debug(fmt.Sprintf("Certificate Details:"+
-			"\n\tSKI: %s"+
-			"\n\tCN: %s"+
-			"\n\tBundleName: %s"+
-			"\n\tSerial: %s"+
-			"\n\tAKI: %s"+
-			"\n\tType: %s"+
-			"\n\tKey Type: %s"+
-			"\n\tSANs: %s"+
-			"\n\tNot Before: %v"+
-			"\n\tExpiry: %v",
-			cert.SubjectKeyIdentifier,
-			cert.CommonName.String,
-			cert.BundleName,
-			cert.Serial,
-			cert.AKI,
-			cert.Type,
-			cert.KeyType,
-			formatSANs(cert.SANsJSON),
-			formatTimePtr(cert.NotBefore),
-			cert.Expiry))
+		slog.Debug("Certificate details",
+			"ski", cert.SubjectKeyIdentifier,
+			"cn", cert.CommonName.String,
+			"bundle_name", cert.BundleName,
+			"serial", cert.Serial,
+			"aki", cert.AKI,
+			"type", cert.Type,
+			"key_type", cert.KeyType,
+			"sans", formatSANs(cert.SANsJSON),
+			"not_before", formatTimePtr(cert.NotBefore),
+			"expiry", cert.Expiry)
 		certCount++
 	}
-	slog.Debug(fmt.Sprintf("Total Certificates: %d", certCount))
+	slog.Debug("Total certificates", "count", certCount)
 
 	// Print keys
 	printHeader("KEYS")
@@ -336,12 +326,10 @@ func (db *DB) DumpDB() error {
 		if err := rows.StructScan(&key); err != nil {
 			return fmt.Errorf("failed to scan key: %w", err)
 		}
-		slog.Debug(fmt.Sprintf("SKI: %s | Type: %s",
-			key.SubjectKeyIdentifier,
-			strings.ToUpper(key.KeyType)))
+		slog.Debug("Key record", "ski", key.SubjectKeyIdentifier, "type", strings.ToUpper(key.KeyType))
 		keyCount++
 	}
-	slog.Debug(fmt.Sprintf("Total Keys: %d", keyCount))
+	slog.Debug("Total keys", "count", keyCount)
 
 	return nil
 }

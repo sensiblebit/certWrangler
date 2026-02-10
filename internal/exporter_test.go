@@ -842,7 +842,7 @@ func TestExportBundles_EndToEnd(t *testing.T) {
 	outDir := t.TempDir()
 
 	// Use force=true to allow untrusted certs
-	err := ExportBundles(bundleConfigs, outDir, cfg.DB, true)
+	err := ExportBundles(bundleConfigs, outDir, cfg.DB, true, false)
 	if err != nil {
 		t.Fatalf("ExportBundles: %v", err)
 	}

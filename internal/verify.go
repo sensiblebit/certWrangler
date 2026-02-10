@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"context"
 	"crypto/x509"
 	"fmt"
 	"os"
@@ -75,7 +76,7 @@ func VerifyCert(certPath, keyPath string, checkChain bool, expiryDuration time.D
 	if checkChain {
 		opts := certkit.DefaultOptions()
 		opts.TrustStore = trustStore
-		_, err := certkit.Bundle(cert, opts)
+		_, err := certkit.Bundle(context.Background(), cert, opts)
 		valid := err == nil
 		result.ChainValid = &valid
 		if err != nil {

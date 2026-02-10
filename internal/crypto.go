@@ -53,7 +53,7 @@ func processPEMCertificates(data []byte, path string, cfg *Config) bool {
 		// Always compute SKI from the public key (never use embedded SubjectKeyId)
 		rawSKID, err := certkit.ComputeSKID(cert.PublicKey)
 		if err != nil {
-			slog.Error(fmt.Sprintf("Failed to compute SKID for certificate %s: %v", cert.SerialNumber, err))
+			slog.Error("Failed to compute SKID for certificate", "serial", cert.SerialNumber, "error", err)
 			continue
 		}
 		skid := hex.EncodeToString(rawSKID)
@@ -81,15 +81,15 @@ func processPEMCertificates(data []byte, path string, cfg *Config) bool {
 		}
 
 		if time.Now().After(cert.NotAfter) {
-			slog.Debug(fmt.Sprintf("Skipping expired certificate: CN=%s, Serial=%s, Expired=%v",
-				cert.Subject.CommonName,
-				cert.SerialNumber.String(),
-				cert.NotAfter.Format(time.RFC3339)))
+			slog.Debug("Skipping expired certificate",
+				"cn", cert.Subject.CommonName,
+				"serial", cert.SerialNumber.String(),
+				"expired", cert.NotAfter.Format(time.RFC3339))
 			continue
 		}
 
 		bundleName := determineBundleName(cert.Subject.CommonName, cfg.BundleConfigs)
-		slog.Debug(fmt.Sprintf("Determined bundle name %s for certificate CN=%s", bundleName, cert.Subject.CommonName))
+		slog.Debug("Determined bundle name", "bundle", bundleName, "cn", cert.Subject.CommonName)
 
 		certPEM := []byte(certkit.CertToPEM(cert))
 
@@ -108,12 +108,12 @@ func processPEMCertificates(data []byte, path string, cfg *Config) bool {
 		}
 
 		if err := cfg.DB.InsertCertificate(certRecord); err != nil {
-			slog.Warn(fmt.Sprintf("Failed to insert certificate into the database: %v", err))
+			slog.Warn("Failed to insert certificate into the database", "error", err)
 		} else {
-			slog.Debug(fmt.Sprintf("Inserted certificate %s with SKID %s into database", cert.SerialNumber.String(), skid))
+			slog.Debug("Inserted certificate into database", "serial", cert.SerialNumber.String(), "skid", skid)
 		}
 
-		slog.Info(fmt.Sprintf("%s, certificate, sha:%s", path, skid))
+		slog.Info("Found certificate", "path", path, "skid", skid)
 	}
 	return true
 }
@@ -131,10 +131,10 @@ func processPEMCSR(data []byte, path string) bool {
 		if rawSKID, err := certkit.ComputeSKID(pub); err == nil {
 			skid = hex.EncodeToString(rawSKID)
 		} else {
-			slog.Debug(fmt.Sprintf("computeSKID error on %s (CSR): %v", path, err))
+			slog.Debug("computeSKID error on CSR", "path", path, "error", err)
 		}
 	}
-	slog.Info(fmt.Sprintf("%s, csr, sha256:%s", path, skid))
+	slog.Info("Found CSR", "path", path, "skid", skid)
 	return true
 }
 
@@ -145,7 +145,7 @@ func processPEMPrivateKeys(data []byte, path string, cfg *Config) {
 		var block *pem.Block
 		block, rest = pem.Decode(rest)
 		if block == nil {
-			slog.Debug(fmt.Sprintf("No more valid PEM blocks found in %s", path))
+			slog.Debug("No more valid PEM blocks found", "path", path)
 			break
 		}
 
@@ -157,23 +157,23 @@ func processPEMPrivateKeys(data []byte, path string, cfg *Config) {
 		pemData := pem.EncodeToMemory(block)
 		key, err := parsePrivateKey(pemData, cfg.Passwords)
 		if err != nil || key == nil {
-			slog.Debug(fmt.Sprintf("Failed to parse private key from PEM block in %s: %v", path, err))
+			slog.Debug("Failed to parse private key from PEM block", "path", path, "error", err)
 			continue
 		}
 
 		skid := "N/A"
 		pub, err := certkit.GetPublicKey(key)
 		if err != nil {
-			slog.Debug(fmt.Sprintf("getPublicKey error on %s: %v", path, err))
-			slog.Info(fmt.Sprintf("%s, private key, sha256:%s", path, skid))
+			slog.Debug("getPublicKey error", "path", path, "error", err)
+			slog.Info("Found private key", "path", path, "skid", skid)
 			continue
 		}
 
-		slog.Debug(fmt.Sprintf("Got public key of type: %T", pub))
+		slog.Debug("Got public key", "type", fmt.Sprintf("%T", pub))
 		rawSKID, err := certkit.ComputeSKID(pub)
 		if err != nil {
-			slog.Debug(fmt.Sprintf("computeSKID error on %s (private key): %v", path, err))
-			slog.Info(fmt.Sprintf("%s, private key, sha256:%s", path, skid))
+			slog.Debug("computeSKID error on private key", "path", path, "error", err)
+			slog.Info("Found private key", "path", path, "skid", skid)
 			continue
 		}
 
@@ -212,12 +212,12 @@ func processPEMPrivateKeys(data []byte, path string, cfg *Config) {
 		}
 
 		if err := cfg.DB.InsertKey(rec); err != nil {
-			slog.Warn(fmt.Sprintf("Failed to insert key into database: %v", err))
+			slog.Warn("Failed to insert key into database", "error", err)
 		} else {
-			slog.Debug(fmt.Sprintf("Inserted key with SKID %s into database", skid))
+			slog.Debug("Inserted key into database", "skid", skid)
 		}
 
-		slog.Info(fmt.Sprintf("%s, private key, sha256:%s", path, skid))
+		slog.Info("Found private key", "path", path, "skid", skid)
 	}
 }
 
@@ -225,7 +225,7 @@ func processDER(data []byte, path string, cfg *Config) {
 	// Try parsing as certificate(s) — handles both single and multi-cert DER
 	certs, err := x509.ParseCertificates(data)
 	if err == nil && len(certs) > 0 {
-		slog.Debug(fmt.Sprintf("Successfully parsed %d DER certificate(s)", len(certs)))
+		slog.Debug("Successfully parsed DER certificate(s)", "count", len(certs))
 		for _, cert := range certs {
 			certPEM := []byte(certkit.CertToPEM(cert))
 			processPEMCertificates(certPEM, path, cfg)
@@ -235,7 +235,7 @@ func processDER(data []byte, path string, cfg *Config) {
 
 	// Try PKCS8
 	if key, err := x509.ParsePKCS8PrivateKey(data); err == nil && key != nil {
-		slog.Debug(fmt.Sprintf("Successfully parsed as PKCS8 private key of type %T", key))
+		slog.Debug("Successfully parsed as PKCS8 private key", "type", fmt.Sprintf("%T", key))
 		keyDER, err := x509.MarshalPKCS8PrivateKey(key)
 		if err == nil {
 			keyPEM := pem.EncodeToMemory(&pem.Block{
@@ -282,7 +282,7 @@ func processDER(data []byte, path string, cfg *Config) {
 		for _, password := range cfg.Passwords {
 			certs, keys, err := certkit.DecodeJKS(data, password)
 			if err != nil {
-				slog.Debug(fmt.Sprintf("Failed JKS decode with password '%s': %v", password, err))
+				slog.Debug("Failed JKS decode", "password", password, "error", err)
 				continue
 			}
 			for _, cert := range certs {
@@ -292,7 +292,7 @@ func processDER(data []byte, path string, cfg *Config) {
 			for _, key := range keys {
 				keyPEM, err := certkit.MarshalPrivateKeyToPEM(key)
 				if err != nil {
-					slog.Debug(fmt.Sprintf("Failed to marshal JKS key: %v", err))
+					slog.Debug("Failed to marshal JKS key", "error", err)
 					continue
 				}
 				processPEMPrivateKeys([]byte(keyPEM), path, cfg)
@@ -306,12 +306,12 @@ func processDER(data []byte, path string, cfg *Config) {
 	for _, password := range cfg.Passwords {
 		pems, err := pkcs12.ToPEM(data, password)
 		if err != nil {
-			slog.Debug(fmt.Sprintf("Failed to extract safe bags with password '%s': %v", password, err))
+			slog.Debug("Failed to extract safe bags", "password", password, "error", err)
 			continue
 		}
 
 		for i, pemBlock := range pems {
-			slog.Debug(fmt.Sprintf("Processing extracted PEM block %d from %s", i+1, path))
+			slog.Debug("Processing extracted PEM block", "block", i+1, "path", path)
 			pemData := pem.EncodeToMemory(pemBlock)
 			blockPath := fmt.Sprintf("%s[%d]", path, i+1)
 			if !processPEMCertificates(pemData, blockPath, cfg) {
@@ -338,7 +338,7 @@ func ProcessFile(path string, cfg *Config) error {
 		return fmt.Errorf("could not read %s: %v", path, err)
 	}
 
-	slog.Debug(fmt.Sprintf("=== Processing %s ===", path))
+	slog.Debug("Processing file", "path", path)
 
 	// Check if the data is PEM format
 	if certkit.IsPEM(data) {

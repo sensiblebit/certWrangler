@@ -2,7 +2,6 @@ package internal
 
 import (
 	"bufio"
-	"fmt"
 	"log/slog"
 	"os"
 	"strings"
@@ -47,7 +46,7 @@ func ProcessPasswords(passwordList string, passwordFile string) []string {
 	if passwordFile != "" {
 		filePasswords, err := LoadPasswordsFromFile(passwordFile)
 		if err != nil {
-			slog.Error(fmt.Sprintf("Failed to load passwords from file: %v", err))
+			slog.Error("Failed to load passwords from file", "error", err)
 		} else {
 			passwords = append(passwords, filePasswords...)
 		}
