@@ -3,6 +3,7 @@ package internal
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 )
 
@@ -12,16 +13,8 @@ func TestProcessPasswords_DefaultsAlwaysPresent(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	defaults := []string{"", "password", "changeit"}
-	for _, d := range defaults {
-		found := false
-		for _, p := range result {
-			if p == d {
-				found = true
-				break
-			}
-		}
-		if !found {
+	for _, d := range []string{"", "password", "changeit"} {
+		if !slices.Contains(result, d) {
 			t.Errorf("expected default password %q to be present", d)
 		}
 	}
@@ -34,14 +27,7 @@ func TestProcessPasswords_CommaSeparatedList(t *testing.T) {
 	}
 
 	for _, want := range []string{"secret1", "secret2", "secret3"} {
-		found := false
-		for _, p := range result {
-			if p == want {
-				found = true
-				break
-			}
-		}
-		if !found {
+		if !slices.Contains(result, want) {
 			t.Errorf("expected password %q from comma list to be present", want)
 		}
 	}
@@ -60,14 +46,7 @@ func TestProcessPasswords_FromFile(t *testing.T) {
 	}
 
 	for _, want := range []string{"filepass1", "filepass2"} {
-		found := false
-		for _, p := range result {
-			if p == want {
-				found = true
-				break
-			}
-		}
-		if !found {
+		if !slices.Contains(result, want) {
 			t.Errorf("expected password %q from file to be present", want)
 		}
 	}
