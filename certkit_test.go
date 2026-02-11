@@ -701,35 +701,38 @@ func TestParsePEMCertificateRequest(t *testing.T) {
 	}
 }
 
-func TestParsePEMCertificateRequest_invalidPEM(t *testing.T) {
-	_, err := ParsePEMCertificateRequest([]byte("not valid PEM"))
-	if err == nil {
-		t.Error("expected error for invalid PEM")
+func TestParsePEMCertificateRequest_errors(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   []byte
+		wantErr string
+	}{
+		{
+			name:    "invalid PEM",
+			input:   []byte("not valid PEM"),
+			wantErr: "no PEM block found",
+		},
+		{
+			name:    "wrong block type",
+			input:   pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: []byte("whatever")}),
+			wantErr: "expected CERTIFICATE REQUEST",
+		},
+		{
+			name:    "invalid DER",
+			input:   pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: []byte("garbage")}),
+			wantErr: "parsing certificate request",
+		},
 	}
-	if !strings.Contains(err.Error(), "no PEM block found") {
-		t.Errorf("error should mention no PEM block, got: %v", err)
-	}
-}
-
-func TestParsePEMCertificateRequest_wrongBlockType(t *testing.T) {
-	pemData := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: []byte("whatever")})
-	_, err := ParsePEMCertificateRequest(pemData)
-	if err == nil {
-		t.Error("expected error for wrong block type")
-	}
-	if !strings.Contains(err.Error(), "expected CERTIFICATE REQUEST") {
-		t.Errorf("error should mention expected block type, got: %v", err)
-	}
-}
-
-func TestParsePEMCertificateRequest_invalidDER(t *testing.T) {
-	pemData := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: []byte("garbage")})
-	_, err := ParsePEMCertificateRequest(pemData)
-	if err == nil {
-		t.Error("expected error for invalid DER")
-	}
-	if !strings.Contains(err.Error(), "parsing certificate request") {
-		t.Errorf("error should mention parsing, got: %v", err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := ParsePEMCertificateRequest(tt.input)
+			if err == nil {
+				t.Fatal("expected error")
+			}
+			if !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("error = %v, want substring %q", err, tt.wantErr)
+			}
+		})
 	}
 }
 
