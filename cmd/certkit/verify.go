@@ -1,19 +1,21 @@
 package main
 
 import (
+	"crypto"
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/sensiblebit/certkit"
 	"github.com/sensiblebit/certkit/internal"
 	"github.com/spf13/cobra"
 )
 
 var (
 	verifyKeyPath    string
-	verifyChain      bool
 	verifyExpiry     string
 	verifyTrustStore string
 )
@@ -21,21 +23,27 @@ var (
 var verifyCmd = &cobra.Command{
 	Use:   "verify <file>",
 	Short: "Verify certificate chain, key match, or expiry",
-	Long:  "Verify a certificate's chain of trust, check if a key matches, or check if it expires within a given duration.",
-	Example: `  certkit verify cert.pem --chain
+	Long: `Verify a certificate's chain of trust, check if a key matches, or check
+if it expires within a given duration.
+
+Accepts PEM, DER, PKCS#12, JKS, or PKCS#7 input. The chain is always verified.
+When the input contains an embedded private key (PKCS#12, JKS), the key match
+is checked automatically. Use --key to check against an external key file.`,
+	Example: `  certkit verify cert.pem
   certkit verify cert.pem --key key.pem
   certkit verify cert.pem --expiry 30d
-  certkit verify cert.pem --chain --key key.pem --expiry 90d`,
+  certkit verify store.p12
+  certkit verify store.p12 --expiry 90d
+  certkit verify keystore.jks
+  certkit verify chain.p7b`,
 	Args: cobra.ExactArgs(1),
 	RunE: runVerify,
 }
 
 func init() {
 	verifyCmd.Flags().StringVar(&verifyKeyPath, "key", "", "Private key file to check against the certificate")
-	verifyCmd.Flags().BoolVar(&verifyChain, "chain", false, "Verify the certificate chain of trust")
 	verifyCmd.Flags().StringVarP(&verifyExpiry, "expiry", "e", "", "Check if cert expires within duration (e.g., 30d, 720h)")
 	verifyCmd.Flags().StringVar(&verifyTrustStore, "trust-store", "mozilla", "Trust store for chain validation: system, mozilla")
-	verifyCmd.MarkFlagsOneRequired("key", "chain", "expiry")
 }
 
 // parseDuration extends time.ParseDuration to support a "d" suffix for days.
@@ -65,7 +73,38 @@ func runVerify(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("loading passwords: %w", err)
 	}
 
-	result, err := internal.VerifyCert(cmd.Context(), args[0], verifyKeyPath, verifyChain, expiryDuration, passwords, verifyTrustStore)
+	// Parse the input file (handles p12, jks, p7b, pem, der)
+	contents, err := internal.LoadContainerFile(args[0], passwords)
+	if err != nil {
+		return err
+	}
+
+	// Load explicit key from --key flag (overrides embedded key)
+	var key crypto.PrivateKey
+	if verifyKeyPath != "" {
+		keyData, err := os.ReadFile(verifyKeyPath)
+		if err != nil {
+			return fmt.Errorf("reading key file: %w", err)
+		}
+		key, err = certkit.ParsePEMPrivateKeyWithPasswords(keyData, passwords)
+		if err != nil {
+			return fmt.Errorf("parsing key: %w", err)
+		}
+	} else {
+		key = contents.Key
+	}
+
+	input := &internal.VerifyInput{
+		Cert:           contents.Leaf,
+		Key:            key,
+		ExtraCerts:     contents.ExtraCerts,
+		CheckKeyMatch:  key != nil,
+		CheckChain:     true, // Always verify chain
+		ExpiryDuration: expiryDuration,
+		TrustStore:     verifyTrustStore,
+	}
+
+	result, err := internal.VerifyCert(cmd.Context(), input)
 	if err != nil {
 		return err
 	}

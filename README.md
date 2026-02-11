@@ -91,11 +91,12 @@ go build -o certkit ./cmd/certkit/
 | Flag | Default | Description |
 |---|---|---|
 | `--key` | *(empty)* | Private key file to check against the certificate |
-| `--chain` | `false` | Verify the certificate chain of trust |
 | `--expiry`, `-e` | *(empty)* | Check if cert expires within duration (e.g., `30d`, `720h`) |
 | `--trust-store` | `mozilla` | Trust store for chain validation: `system`, `mozilla` |
 
-At least one of `--key`, `--chain`, or `--expiry` is required.
+Accepts PEM, DER, PKCS#12, JKS, or PKCS#7 input. The chain is always verified.
+When the input contains an embedded private key (PKCS#12, JKS), the key match
+is checked automatically.
 
 ### Keygen Flags
 
@@ -192,11 +193,12 @@ certkit inspect cert.pem
 certkit inspect cert.pem --format json
 ```
 
-Verify a certificate with key matching and expiry check:
+Verify a certificate (chain is always checked, key match is automatic for containers):
 
 ```sh
+certkit verify cert.pem
+certkit verify store.p12
 certkit verify cert.pem --key key.pem --expiry 30d
-certkit verify cert.pem --chain
 ```
 
 Generate an ECDSA key pair (prints PEM to stdout):

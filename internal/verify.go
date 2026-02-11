@@ -2,14 +2,26 @@ package internal
 
 import (
 	"context"
+	"crypto"
 	"crypto/x509"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
 	"github.com/sensiblebit/certkit"
 )
+
+// VerifyInput holds the parsed certificate data and verification options.
+type VerifyInput struct {
+	Cert           *x509.Certificate
+	Key            crypto.PrivateKey
+	ExtraCerts     []*x509.Certificate
+	CustomRoots    []*x509.Certificate
+	CheckKeyMatch  bool
+	CheckChain     bool
+	ExpiryDuration time.Duration
+	TrustStore     string
+}
 
 // VerifyResult holds the results of certificate verification checks.
 type VerifyResult struct {
@@ -24,59 +36,34 @@ type VerifyResult struct {
 	Errors      []string `json:"errors,omitempty"`
 }
 
-// VerifyCert verifies a certificate file with optional key matching, chain validation, and expiry checking.
-func VerifyCert(ctx context.Context, certPath, keyPath string, checkChain bool, expiryDuration time.Duration, passwords []string, trustStore string) (*VerifyResult, error) {
-	certData, err := os.ReadFile(certPath)
-	if err != nil {
-		return nil, fmt.Errorf("reading certificate: %w", err)
-	}
-
-	var cert *x509.Certificate
-	if certkit.IsPEM(certData) {
-		cert, err = certkit.ParsePEMCertificate(certData)
-	} else {
-		cert, err = x509.ParseCertificate(certData)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("parsing certificate: %w", err)
-	}
-
+// VerifyCert verifies a certificate with optional key matching, chain validation, and expiry checking.
+func VerifyCert(ctx context.Context, input *VerifyInput) (*VerifyResult, error) {
 	result := &VerifyResult{
-		Subject:  cert.Subject.String(),
-		NotAfter: cert.NotAfter.UTC().Format(time.RFC3339),
+		Subject:  input.Cert.Subject.String(),
+		NotAfter: input.Cert.NotAfter.UTC().Format(time.RFC3339),
 	}
 
 	// Key-cert match check
-	if keyPath != "" {
-		keyData, err := os.ReadFile(keyPath)
+	if input.CheckKeyMatch && input.Key != nil {
+		match, err := certkit.KeyMatchesCert(input.Key, input.Cert)
 		if err != nil {
-			result.KeyMatchErr = fmt.Sprintf("reading key: %v", err)
+			result.KeyMatchErr = fmt.Sprintf("comparing key: %v", err)
 			result.Errors = append(result.Errors, result.KeyMatchErr)
 		} else {
-			key, err := certkit.ParsePEMPrivateKeyWithPasswords(keyData, passwords)
-			if err != nil {
-				result.KeyMatchErr = fmt.Sprintf("parsing key: %v", err)
-				result.Errors = append(result.Errors, result.KeyMatchErr)
-			} else {
-				match, err := certkit.KeyMatchesCert(key, cert)
-				if err != nil {
-					result.KeyMatchErr = fmt.Sprintf("comparing key: %v", err)
-					result.Errors = append(result.Errors, result.KeyMatchErr)
-				} else {
-					result.KeyMatch = &match
-					if !match {
-						result.Errors = append(result.Errors, "key does not match certificate")
-					}
-				}
+			result.KeyMatch = &match
+			if !match {
+				result.Errors = append(result.Errors, "key does not match certificate")
 			}
 		}
 	}
 
 	// Chain validation
-	if checkChain {
+	if input.CheckChain {
 		opts := certkit.DefaultOptions()
-		opts.TrustStore = trustStore
-		_, err := certkit.Bundle(ctx, cert, opts)
+		opts.TrustStore = input.TrustStore
+		opts.ExtraIntermediates = input.ExtraCerts
+		opts.CustomRoots = input.CustomRoots
+		_, err := certkit.Bundle(ctx, input.Cert, opts)
 		valid := err == nil
 		result.ChainValid = &valid
 		if err != nil {
@@ -86,14 +73,14 @@ func VerifyCert(ctx context.Context, certPath, keyPath string, checkChain bool, 
 	}
 
 	// Expiry check
-	if expiryDuration > 0 {
-		expires := certkit.CertExpiresWithin(cert, expiryDuration)
+	if input.ExpiryDuration > 0 {
+		expires := certkit.CertExpiresWithin(input.Cert, input.ExpiryDuration)
 		result.Expiry = &expires
 		if expires {
-			result.ExpiryInfo = fmt.Sprintf("certificate expires within %s (not after: %s)", expiryDuration, result.NotAfter)
+			result.ExpiryInfo = fmt.Sprintf("certificate expires within %s (not after: %s)", input.ExpiryDuration, result.NotAfter)
 			result.Errors = append(result.Errors, result.ExpiryInfo)
 		} else {
-			result.ExpiryInfo = fmt.Sprintf("certificate does not expire within %s", expiryDuration)
+			result.ExpiryInfo = fmt.Sprintf("certificate does not expire within %s", input.ExpiryDuration)
 		}
 	}
 
