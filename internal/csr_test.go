@@ -206,6 +206,41 @@ func TestGenerateCSRFiles_RSAKeyGen(t *testing.T) {
 	}
 }
 
+func TestGenerateCSRFiles_Stdout(t *testing.T) {
+	dir := t.TempDir()
+	tmplPath := filepath.Join(dir, "template.json")
+	tmpl := certkit.CSRTemplate{
+		Subject: certkit.CSRSubject{CommonName: "stdout.example.com"},
+		Hosts:   []string{"stdout.example.com"},
+	}
+	data, _ := json.Marshal(tmpl)
+	os.WriteFile(tmplPath, data, 0644)
+
+	result, err := GenerateCSRFiles(CSROptions{
+		TemplatePath: tmplPath,
+		Algorithm:    "ecdsa",
+		Curve:        "P-256",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(result.CSRPEM, "CERTIFICATE REQUEST") {
+		t.Error("CSRPEM should contain CERTIFICATE REQUEST")
+	}
+	if !strings.Contains(result.KeyPEM, "PRIVATE KEY") {
+		t.Error("KeyPEM should contain PRIVATE KEY")
+	}
+
+	// No files should be written
+	if result.CSRFile != "" {
+		t.Errorf("CSRFile should be empty in stdout mode, got %q", result.CSRFile)
+	}
+	if result.KeyFile != "" {
+		t.Errorf("KeyFile should be empty in stdout mode, got %q", result.KeyFile)
+	}
+}
+
 func TestGenerateCSRFiles_NoInputError(t *testing.T) {
 	_, err := GenerateCSRFiles(CSROptions{
 		Algorithm: "ecdsa",

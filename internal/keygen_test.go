@@ -126,6 +126,39 @@ func TestGenerateKeyFiles_WithCSR(t *testing.T) {
 	}
 }
 
+func TestGenerateKeyFiles_Stdout(t *testing.T) {
+	result, err := GenerateKeyFiles(KeygenOptions{
+		Algorithm: "ecdsa",
+		Curve:     "P-256",
+		CN:        "stdout.example.com",
+		SANs:      []string{"stdout.example.com"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(result.KeyPEM, "PRIVATE KEY") {
+		t.Error("KeyPEM should contain PRIVATE KEY")
+	}
+	if !strings.Contains(result.PubPEM, "PUBLIC KEY") {
+		t.Error("PubPEM should contain PUBLIC KEY")
+	}
+	if !strings.Contains(result.CSRPEM, "CERTIFICATE REQUEST") {
+		t.Error("CSRPEM should contain CERTIFICATE REQUEST")
+	}
+
+	// No files should be written
+	if result.KeyFile != "" {
+		t.Errorf("KeyFile should be empty in stdout mode, got %q", result.KeyFile)
+	}
+	if result.PubFile != "" {
+		t.Errorf("PubFile should be empty in stdout mode, got %q", result.PubFile)
+	}
+	if result.CSRFile != "" {
+		t.Errorf("CSRFile should be empty in stdout mode, got %q", result.CSRFile)
+	}
+}
+
 func TestGenerateKeyFiles_UnsupportedAlgorithm(t *testing.T) {
 	dir := t.TempDir()
 	_, err := GenerateKeyFiles(KeygenOptions{

@@ -1,11 +1,16 @@
 package main
 
 import (
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 	"fmt"
 	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/sensiblebit/certkit/internal"
 	"github.com/spf13/cobra"
@@ -39,7 +44,7 @@ func init() {
 	scanCmd.Flags().StringVarP(&dbPath, "db", "d", "", "SQLite database path (default: in-memory)")
 	scanCmd.Flags().BoolVar(&scanExport, "export", false, "Export certificate bundles after scanning")
 	scanCmd.Flags().StringVarP(&scanConfigPath, "config", "c", "./bundles.yaml", "Path to bundle config YAML")
-	scanCmd.Flags().StringVarP(&scanOutDir, "out", "o", "./bundles", "Output directory for exported bundles")
+	scanCmd.Flags().StringVarP(&scanOutDir, "out", "o", "", "Output directory for exported bundles (required with --export)")
 	scanCmd.Flags().BoolVarP(&scanForceExport, "force", "f", false, "Allow export of untrusted certificate bundles")
 	scanCmd.Flags().BoolVar(&scanDuplicates, "duplicates", false, "Export all certificates per bundle, not just the newest")
 	scanCmd.Flags().StringVar(&scanDumpKeys, "dump-keys", "", "Dump all discovered keys to a single PEM file")
@@ -49,6 +54,10 @@ func init() {
 
 func runScan(cmd *cobra.Command, args []string) error {
 	inputPath := args[0]
+
+	if scanExport && scanOutDir == "" {
+		return fmt.Errorf("--out is required when using --export")
+	}
 
 	db, err := internal.NewDB(dbPath)
 	if err != nil {
@@ -142,6 +151,17 @@ func runScan(cmd *cobra.Command, args []string) error {
 		if len(certs) > 0 {
 			var data []byte
 			for _, c := range certs {
+				block, _ := pem.Decode([]byte(c.PEM))
+				if block != nil {
+					if cert, err := x509.ParseCertificate(block.Bytes); err == nil {
+						header := fmt.Sprintf("# Subject: %s\n# Issuer: %s\n# Not Before: %s\n# Not After : %s\n",
+							formatDN(cert.Subject),
+							formatDN(cert.Issuer),
+							cert.NotBefore.UTC().Format(time.RFC1123Z),
+							cert.NotAfter.UTC().Format(time.RFC1123Z))
+						data = append(data, header...)
+					}
+				}
 				data = append(data, c.PEM...)
 			}
 			if err := os.WriteFile(scanDumpCerts, data, 0644); err != nil {
@@ -186,4 +206,32 @@ func runScan(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// formatDN formats a pkix.Name as a one-line distinguished name string
+// matching the OpenSSL one-line format (e.g. "CN=example.com, O=Acme, C=US").
+func formatDN(name pkix.Name) string {
+	var parts []string
+	if name.CommonName != "" {
+		parts = append(parts, "CN="+name.CommonName)
+	}
+	for _, o := range name.Organization {
+		parts = append(parts, "O="+o)
+	}
+	for _, ou := range name.OrganizationalUnit {
+		parts = append(parts, "OU="+ou)
+	}
+	for _, l := range name.Locality {
+		parts = append(parts, "L="+l)
+	}
+	for _, st := range name.Province {
+		parts = append(parts, "ST="+st)
+	}
+	for _, c := range name.Country {
+		parts = append(parts, "C="+c)
+	}
+	if len(parts) == 0 {
+		return name.String()
+	}
+	return strings.Join(parts, ", ")
 }

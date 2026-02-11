@@ -27,7 +27,7 @@ brew install certkit
 
 ### From source
 
-Requires Go 1.25+ and a C compiler (for SQLite via cgo).
+Requires Go 1.25+. No CGO required.
 
 ```sh
 go build -o certkit ./cmd/certkit/
@@ -61,9 +61,12 @@ go build -o certkit ./cmd/certkit/
 | `--db`, `-d` | *(empty)* | SQLite database path (empty = in-memory) |
 | `--export` | `false` | Export certificate bundles after scanning |
 | `--config`, `-c` | `./bundles.yaml` | Path to bundle config YAML |
-| `--out`, `-o` | `./bundles` | Output directory for exported bundles |
+| `--out`, `-o` | *(required)* | Output directory for exported bundles |
 | `--force`, `-f` | `false` | Allow export of untrusted certificate bundles |
 | `--duplicates` | `false` | Export all certificates per bundle, not just the newest |
+| `--dump-keys` | *(empty)* | Dump all discovered keys to a single PEM file |
+| `--dump-certs` | *(empty)* | Dump all discovered certificates to a single PEM file |
+| `--max-file-size` | `10485760` | Skip files larger than this size in bytes (0 to disable) |
 
 ### Bundle Flags
 
@@ -93,7 +96,7 @@ At least one of `--key`, `--chain`, or `--expiry` is required.
 | `--algorithm`, `-a` | `ecdsa` | Key algorithm: `rsa`, `ecdsa`, `ed25519` |
 | `--bits`, `-b` | `4096` | RSA key size in bits |
 | `--curve` | `P-256` | ECDSA curve: `P-256`, `P-384`, `P-521` |
-| `--out`, `-o` | `.` | Output directory |
+| `--out`, `-o` | *(stdout)* | Output directory (omit to print PEM to stdout) |
 | `--cn` | *(empty)* | Common Name (triggers CSR generation) |
 | `--sans` | *(empty)* | Comma-separated SANs (triggers CSR generation) |
 
@@ -108,7 +111,7 @@ At least one of `--key`, `--chain`, or `--expiry` is required.
 | `--algorithm`, `-a` | `ecdsa` | Key algorithm for generated keys |
 | `--bits`, `-b` | `4096` | RSA key size in bits |
 | `--curve` | `P-256` | ECDSA curve |
-| `--out`, `-o` | `.` | Output directory |
+| `--out`, `-o` | *(stdout)* | Output directory (omit to print PEM to stdout) |
 
 Exactly one of `--template`, `--cert`, or `--from-csr` is required.
 
@@ -162,6 +165,12 @@ Export as PKCS#12:
 certkit bundle leaf.pem --key key.pem --format p12 -o bundle.p12
 ```
 
+Dump all discovered keys and certificates:
+
+```sh
+certkit scan ./certs/ --dump-keys all-keys.pem --dump-certs all-certs.pem
+```
+
 Read from stdin:
 
 ```sh
@@ -182,22 +191,28 @@ certkit verify cert.pem --key key.pem --expiry 30d
 certkit verify cert.pem --chain
 ```
 
-Generate an ECDSA key pair with a CSR:
+Generate an ECDSA key pair (prints PEM to stdout):
 
 ```sh
-certkit keygen -a ecdsa --cn example.com --sans "example.com,www.example.com" -o ./keys
+certkit keygen
 ```
 
-Generate an RSA key pair:
+Generate an RSA key pair and write to files:
 
 ```sh
 certkit keygen -a rsa -b 4096 -o ./keys
 ```
 
-Generate a CSR from a JSON template:
+Generate a key pair with a CSR:
 
 ```sh
-certkit csr --template request.json -o ./out
+certkit keygen --cn example.com --sans "example.com,www.example.com"
+```
+
+Generate a CSR from a JSON template (prints PEM to stdout):
+
+```sh
+certkit csr --template request.json
 ```
 
 Generate a CSR from an existing certificate:

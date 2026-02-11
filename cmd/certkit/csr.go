@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/sensiblebit/certkit/internal"
 	"github.com/spf13/cobra"
@@ -23,11 +24,12 @@ var csrCmd = &cobra.Command{
 	Short: "Generate a Certificate Signing Request",
 	Long: `Generate a CSR from a JSON template, existing certificate, or existing CSR.
 
-A new key is generated unless --key is provided. The CSR is written to csr.pem
-and the key (if generated) to key.pem in the output directory.`,
+A new key is generated unless --key is provided. Output is printed to stdout
+by default (PEM format). Use -o to write files to a directory instead.`,
 	Example: `  certkit csr --template request.json
   certkit csr --cert existing.pem --algorithm rsa --bits 4096
-  certkit csr --from-csr old.csr --key mykey.pem`,
+  certkit csr --from-csr old.csr --key mykey.pem
+  certkit csr --template request.json -o ./out`,
 	Args: cobra.NoArgs,
 	RunE: runCSR,
 }
@@ -40,7 +42,7 @@ func init() {
 	csrCmd.Flags().StringVarP(&csrAlgorithm, "algorithm", "a", "ecdsa", "Key algorithm: rsa, ecdsa, or ed25519")
 	csrCmd.Flags().IntVarP(&csrBits, "bits", "b", 4096, "RSA key size in bits")
 	csrCmd.Flags().StringVar(&csrCurve, "curve", "P-256", "ECDSA curve: P-256, P-384, or P-521")
-	csrCmd.Flags().StringVarP(&csrOutPath, "out", "o", ".", "Output directory for generated files")
+	csrCmd.Flags().StringVarP(&csrOutPath, "out", "o", "", "Output directory (default: print to stdout)")
 
 	csrCmd.MarkFlagsMutuallyExclusive("template", "cert", "from-csr")
 	csrCmd.MarkFlagsOneRequired("template", "cert", "from-csr")
@@ -66,9 +68,17 @@ func runCSR(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("CSR: %s\n", result.CSRFile)
-	if result.KeyFile != "" {
-		fmt.Printf("Key: %s\n", result.KeyFile)
+
+	if csrOutPath == "" {
+		fmt.Print(result.CSRPEM)
+		if result.KeyPEM != "" {
+			fmt.Print(result.KeyPEM)
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "CSR: %s\n", result.CSRFile)
+		if result.KeyFile != "" {
+			fmt.Fprintf(os.Stderr, "Key: %s\n", result.KeyFile)
+		}
 	}
 	return nil
 }
