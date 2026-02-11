@@ -140,7 +140,7 @@ func fetchCertFromURL(ctx context.Context, client *http.Client, certURL string) 
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("http %d", resp.StatusCode)
+		return nil, fmt.Errorf("HTTP %d from %s", resp.StatusCode, certURL)
 	}
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20)) // 1MB limit
@@ -261,7 +261,7 @@ func Bundle(ctx context.Context, leaf *x509.Certificate, opts BundleOptions) (*B
 	case "mozilla":
 		rootPool = x509.NewCertPool()
 		if !rootPool.AppendCertsFromPEM([]byte(embedded.MozillaCACertificatesPEM())) {
-			return nil, errors.New("failed to parse embedded Mozilla root certificates")
+			return nil, errors.New("parsing embedded Mozilla root certificates")
 		}
 	case "custom":
 		rootPool = x509.NewCertPool()

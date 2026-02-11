@@ -143,7 +143,7 @@ func TestGenerateCSR_ValidOutput(t *testing.T) {
 	leaf := newRSALeaf(t, ca, "csr.example.com", []string{"csr.example.com", "www.csr.example.com"}, nil)
 
 	certRecord := &CertificateRecord{
-		Serial:               leaf.cert.SerialNumber.String(),
+		SerialNumber:         leaf.cert.SerialNumber.String(),
 		SubjectKeyIdentifier: "test-ski",
 		PEM:                  string(leaf.certPEM),
 		CommonName:           sql.NullString{String: "csr.example.com", Valid: true},
@@ -807,17 +807,17 @@ func TestExportBundles_EndToEnd(t *testing.T) {
 
 	now := time.Now()
 	certRecord := CertificateRecord{
-		Serial:               leaf.cert.SerialNumber.String(),
-		SubjectKeyIdentifier: "e2e-ski",
-		AKI:                  "e2e-aki",
-		Type:                 "leaf",
-		KeyType:              getKeyType(leaf.cert),
-		PEM:                  string(leaf.certPEM),
-		Expiry:               leaf.cert.NotAfter,
-		NotBefore:            &now,
-		SANsJSON:             types.JSONText(`["e2e.example.com"]`),
-		CommonName:           sql.NullString{String: "e2e.example.com", Valid: true},
-		BundleName:           "e2e-bundle",
+		SerialNumber:           leaf.cert.SerialNumber.String(),
+		SubjectKeyIdentifier:   "e2e-ski",
+		AuthorityKeyIdentifier: "e2e-aki",
+		CertType:               "leaf",
+		KeyType:                getKeyType(leaf.cert),
+		PEM:                    string(leaf.certPEM),
+		Expiry:                 leaf.cert.NotAfter,
+		NotBefore:              &now,
+		SANsJSON:               types.JSONText(`["e2e.example.com"]`),
+		CommonName:             sql.NullString{String: "e2e.example.com", Valid: true},
+		BundleName:             "e2e-bundle",
 	}
 	if err := cfg.DB.InsertCertificate(certRecord); err != nil {
 		t.Fatalf("insert cert: %v", err)

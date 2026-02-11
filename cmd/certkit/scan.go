@@ -46,7 +46,7 @@ func runScan(cmd *cobra.Command, args []string) error {
 
 	db, err := internal.NewDB(dbPath)
 	if err != nil {
-		return fmt.Errorf("failed to initialize database: %w", err)
+		return fmt.Errorf("initializing database: %w", err)
 	}
 	defer db.Close()
 
@@ -60,7 +60,7 @@ func runScan(cmd *cobra.Command, args []string) error {
 	if scanExport {
 		bundleConfigs, err = internal.LoadBundleConfigs(scanConfigPath)
 		if err != nil {
-			slog.Warn("Failed to load bundle configurations", "error", err)
+			slog.Warn("loading bundle configurations", "error", err)
 			bundleConfigs = []internal.BundleConfig{}
 		}
 	}
@@ -91,7 +91,7 @@ func runScan(cmd *cobra.Command, args []string) error {
 			}
 			if !d.IsDir() {
 				if err := internal.ProcessFile(path, cfg); err != nil {
-					slog.Warn("Error processing file", "path", path, "error", err)
+					slog.Warn("processing file", "path", path, "error", err)
 				}
 			}
 			return nil
@@ -104,13 +104,13 @@ func runScan(cmd *cobra.Command, args []string) error {
 	if scanExport {
 		// Full export workflow
 		if err := db.ResolveAKIs(); err != nil {
-			slog.Warn("Failed to resolve AKIs", "error", err)
+			slog.Warn("resolving AKIs", "error", err)
 		}
 		if err := os.MkdirAll(scanOutDir, 0755); err != nil {
-			return fmt.Errorf("failed to create output directory %s: %w", scanOutDir, err)
+			return fmt.Errorf("creating output directory %s: %w", scanOutDir, err)
 		}
 		if err := internal.ExportBundles(cmd.Context(), bundleConfigs, scanOutDir, db, scanForceExport, scanDuplicates); err != nil {
-			return fmt.Errorf("failed to export bundles: %w", err)
+			return fmt.Errorf("exporting bundles: %w", err)
 		}
 		if err := db.DumpDB(); err != nil {
 			return fmt.Errorf("dumping database: %w", err)

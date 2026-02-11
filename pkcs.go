@@ -13,13 +13,21 @@ import (
 	gopkcs12 "software.sslmate.com/src/go-pkcs12"
 )
 
+// validatePKCS12KeyType checks that the private key is a supported type for PKCS#12 encoding.
+func validatePKCS12KeyType(privateKey crypto.PrivateKey) error {
+	switch privateKey.(type) {
+	case *rsa.PrivateKey, *ecdsa.PrivateKey, ed25519.PrivateKey:
+		return nil
+	default:
+		return fmt.Errorf("unsupported private key type %T", privateKey)
+	}
+}
+
 // EncodePKCS12 creates a PKCS#12/PFX bundle from a private key, leaf cert,
 // CA chain, and password. Returns the DER-encoded PKCS#12 data.
 func EncodePKCS12(privateKey crypto.PrivateKey, leaf *x509.Certificate, caCerts []*x509.Certificate, password string) ([]byte, error) {
-	switch privateKey.(type) {
-	case *rsa.PrivateKey, *ecdsa.PrivateKey, ed25519.PrivateKey:
-	default:
-		return nil, fmt.Errorf("unsupported private key type %T", privateKey)
+	if err := validatePKCS12KeyType(privateKey); err != nil {
+		return nil, err
 	}
 	return gopkcs12.Modern.Encode(privateKey, leaf, caCerts, password)
 }
@@ -27,10 +35,8 @@ func EncodePKCS12(privateKey crypto.PrivateKey, leaf *x509.Certificate, caCerts 
 // EncodePKCS12Legacy creates a PKCS#12/PFX bundle using the legacy RC2 cipher for
 // compatibility with older Java keystores. Returns the DER-encoded PKCS#12 data.
 func EncodePKCS12Legacy(privateKey crypto.PrivateKey, leaf *x509.Certificate, caCerts []*x509.Certificate, password string) ([]byte, error) {
-	switch privateKey.(type) {
-	case *rsa.PrivateKey, *ecdsa.PrivateKey, ed25519.PrivateKey:
-	default:
-		return nil, fmt.Errorf("unsupported private key type %T", privateKey)
+	if err := validatePKCS12KeyType(privateKey); err != nil {
+		return nil, err
 	}
 	return gopkcs12.LegacyRC2.Encode(privateKey, leaf, caCerts, password)
 }

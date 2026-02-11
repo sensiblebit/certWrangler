@@ -81,16 +81,17 @@ func ParsePEMPrivateKey(pemData []byte) (crypto.PrivateKey, error) {
 		if key, err := x509.ParseECPrivateKey(block.Bytes); err == nil {
 			return key, nil
 		}
-		return nil, errors.New("failed to parse PRIVATE KEY block with any known format")
+		return nil, errors.New("parsing PRIVATE KEY block with any known format")
 	default:
 		return nil, fmt.Errorf("unsupported PEM block type %q", block.Type)
 	}
 }
 
-// DefaultPasswords is the list of passwords tried by default when decrypting
-// password-protected PEM blocks or PKCS#12 files. Callers can append additional
-// passwords to this list.
-var DefaultPasswords = []string{"", "password", "changeit"}
+// DefaultPasswords returns the list of passwords tried by default when decrypting
+// password-protected PEM blocks or PKCS#12 files. Returns a fresh copy each call.
+func DefaultPasswords() []string {
+	return []string{"", "password", "changeit"}
+}
 
 // ParsePEMPrivateKeyWithPasswords tries to parse a PEM-encoded private key.
 // It first attempts unencrypted parsing via ParsePEMPrivateKey. If that fails
@@ -131,7 +132,7 @@ func ParsePEMPrivateKeyWithPasswords(pemData []byte, passwords []string) (crypto
 		}
 	}
 
-	return nil, errors.New("failed to decrypt private key with any provided password")
+	return nil, errors.New("decrypting private key with any provided password")
 }
 
 // ParsePEMCertificateRequest parses a single certificate request from PEM data.

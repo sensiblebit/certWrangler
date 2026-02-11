@@ -32,7 +32,7 @@ func ProcessPasswords(passwordList []string, passwordFile string) ([]string, err
 	var passwords []string
 
 	// Add default passwords
-	passwords = append(passwords, certkit.DefaultPasswords...)
+	passwords = append(passwords, certkit.DefaultPasswords()...)
 
 	// Add passwords from command line list if provided
 	passwords = append(passwords, passwordList...)

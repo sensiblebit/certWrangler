@@ -461,12 +461,13 @@ func TestParsePEMPrivateKey_MislabeledSEC1EC(t *testing.T) {
 }
 
 func TestDefaultPasswords(t *testing.T) {
-	if len(DefaultPasswords) < 3 {
-		t.Errorf("expected at least 3 default passwords, got %d", len(DefaultPasswords))
+	passwords := DefaultPasswords()
+	if len(passwords) < 3 {
+		t.Errorf("expected at least 3 default passwords, got %d", len(passwords))
 	}
 	// Must include empty string, "password", "changeit"
 	expected := map[string]bool{"": true, "password": true, "changeit": true}
-	for _, p := range DefaultPasswords {
+	for _, p := range passwords {
 		delete(expected, p)
 	}
 	for missing := range expected {
@@ -561,7 +562,7 @@ func TestParsePEMPrivateKeyWithPasswords_WrongPassword(t *testing.T) {
 	if err == nil {
 		t.Error("expected error with wrong passwords")
 	}
-	if !strings.Contains(err.Error(), "failed to decrypt") {
+	if !strings.Contains(err.Error(), "decrypting private key") {
 		t.Errorf("error should mention decryption failure, got: %v", err)
 	}
 }
@@ -578,7 +579,7 @@ func TestParsePEMPrivateKeyWithPasswords_DefaultPasswords(t *testing.T) {
 	encBlock, _ := x509.EncryptPEMBlock(rand.Reader, block.Type, block.Bytes, []byte("changeit"), x509.PEMCipherAES256)
 	encPEM := pem.EncodeToMemory(encBlock)
 
-	parsed, err := ParsePEMPrivateKeyWithPasswords(encPEM, DefaultPasswords)
+	parsed, err := ParsePEMPrivateKeyWithPasswords(encPEM, DefaultPasswords())
 	if err != nil {
 		t.Fatalf("expected DefaultPasswords to include 'changeit': %v", err)
 	}

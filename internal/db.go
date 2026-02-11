@@ -27,7 +27,7 @@ func (db *DB) GetAllKeys() ([]KeyRecord, error) {
 	var keys []KeyRecord
 	err := db.Select(&keys, "SELECT * FROM keys")
 	if err != nil {
-		return nil, fmt.Errorf("failed to get all keys: %w", err)
+		return nil, fmt.Errorf("getting all keys: %w", err)
 	}
 	return keys, nil
 }
@@ -40,7 +40,7 @@ func (db *DB) GetCertBySKID(skid string) (*CertificateRecord, error) {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("failed to get certificate by SKID: %w", err)
+		return nil, fmt.Errorf("getting certificate by SKID: %w", err)
 	}
 	return &cert, nil
 }
@@ -56,17 +56,17 @@ func NewDB(dbPath string) (*DB, error) {
 	// Open database connection
 	db, err := sqlx.Open("sqlite3", connectionString)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open database: %w", err)
+		return nil, fmt.Errorf("opening database: %w", err)
 	}
 
 	dbObj := &DB{DB: db}
 
 	// Initialize database schema
 	if err := dbObj.initSchema(); err != nil {
-		return nil, fmt.Errorf("failed to initialize schema: %w", err)
+		return nil, fmt.Errorf("initializing schema: %w", err)
 	}
 
-	slog.Debug("Database initialized", "path", connectionString)
+	slog.Debug("database initialized", "path", connectionString)
 
 	return dbObj, nil
 }
@@ -86,18 +86,18 @@ func (db *DB) initSchema() error {
 			cert_type               text NOT NULL,
 			metadata                text,
 			bundle_name             text NOT NULL,
-			PRIMARY KEY(serial_number, authority_key_identifier, subject_key_identifier)
+			PRIMARY KEY(serial_number, authority_key_identifier)
 		);
 	`)
 	if err != nil {
-		return fmt.Errorf("failed to create certificates table: %w", err)
+		return fmt.Errorf("creating certificates table: %w", err)
 	}
 
 	_, err = db.Exec(`
 		CREATE INDEX IF NOT EXISTS idx_certificates_skid ON certificates (subject_key_identifier);
 	`)
 	if err != nil {
-		return fmt.Errorf("failed to create subject key identifier index on certificates table: %w", err)
+		return fmt.Errorf("creating subject key identifier index on certificates table: %w", err)
 	}
 
 	_, err = db.Exec(`
@@ -113,7 +113,7 @@ func (db *DB) initSchema() error {
 	`)
 
 	if err != nil {
-		return fmt.Errorf("failed to create keys table: %w", err)
+		return fmt.Errorf("creating keys table: %w", err)
 	}
 	return nil
 }
@@ -150,7 +150,7 @@ func (db *DB) GetKey(skid string) (*KeyRecord, error) {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("failed to get key: %w", err)
+		return nil, fmt.Errorf("getting key: %w", err)
 	}
 	return &key, nil
 }
@@ -163,7 +163,7 @@ func (db *DB) GetCert(serial, aki string) (*CertificateRecord, error) {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("failed to get certificate: %w", err)
+		return nil, fmt.Errorf("getting certificate: %w", err)
 	}
 	return &cert, nil
 }
@@ -187,11 +187,17 @@ func formatTimePtr(t *time.Time) string {
 // It builds a multi-hash lookup (RFC 7093 M1 + legacy SHA-1) from all CA certs, then for each
 // non-root cert, matches its embedded AKI against any variant to find the issuer.
 func (db *DB) ResolveAKIs() error {
+	tx, err := db.Beginx()
+	if err != nil {
+		return fmt.Errorf("beginning transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
 	// Get all potential issuers (root + intermediate CAs)
 	var issuers []CertificateRecord
-	err := db.Select(&issuers, "SELECT * FROM certificates WHERE cert_type IN ('root', 'intermediate')")
+	err = tx.Select(&issuers, "SELECT * FROM certificates WHERE cert_type IN ('root', 'intermediate')")
 	if err != nil {
-		return fmt.Errorf("failed to select issuer certificates: %w", err)
+		return fmt.Errorf("selecting issuer certificates: %w", err)
 	}
 
 	// Build lookup: various SKID hex values → issuer's computed RFC 7093 M1 SKID
@@ -221,29 +227,33 @@ func (db *DB) ResolveAKIs() error {
 
 	// Get all non-root certs and resolve their AKIs
 	var certs []CertificateRecord
-	err = db.Select(&certs, "SELECT * FROM certificates WHERE cert_type != 'root'")
+	err = tx.Select(&certs, "SELECT * FROM certificates WHERE cert_type != 'root'")
 	if err != nil {
-		return fmt.Errorf("failed to select non-root certificates: %w", err)
+		return fmt.Errorf("selecting non-root certificates: %w", err)
 	}
 
 	for _, cert := range certs {
-		computedSKID, found := skidLookup[cert.AKI]
+		computedSKID, found := skidLookup[cert.AuthorityKeyIdentifier]
 		if !found {
-			slog.Debug("ResolveAKIs: no issuer found", "serial", cert.Serial, "aki", cert.AKI)
+			slog.Debug("no issuer found for AKI resolution", "serial", cert.SerialNumber, "aki", cert.AuthorityKeyIdentifier)
 			continue
 		}
 
-		if cert.AKI != computedSKID {
-			_, err = db.Exec(
-				"UPDATE certificates SET authority_key_identifier = ? WHERE serial_number = ? AND authority_key_identifier = ? AND subject_key_identifier = ?",
-				computedSKID, cert.Serial, cert.AKI, cert.SubjectKeyIdentifier,
+		if cert.AuthorityKeyIdentifier != computedSKID {
+			_, err = tx.Exec(
+				"UPDATE certificates SET authority_key_identifier = ? WHERE serial_number = ? AND authority_key_identifier = ?",
+				computedSKID, cert.SerialNumber, cert.AuthorityKeyIdentifier,
 			)
 			if err != nil {
-				slog.Warn("ResolveAKIs: failed to update AKI", "serial", cert.Serial, "error", err)
+				slog.Warn("updating AKI", "serial", cert.SerialNumber, "error", err)
 			} else {
-				slog.Debug("ResolveAKIs: updated AKI", "serial", cert.Serial, "old_aki", cert.AKI, "new_aki", computedSKID)
+				slog.Debug("updated AKI", "serial", cert.SerialNumber, "old_aki", cert.AuthorityKeyIdentifier, "new_aki", computedSKID)
 			}
 		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("committing AKI resolution: %w", err)
 	}
 	return nil
 }
@@ -283,11 +293,11 @@ func (db *DB) GetScanSummary() (*ScanSummary, error) {
 
 // DumpDB logs all certificates and keys in the database at debug level.
 func (db *DB) DumpDB() error {
-	slog.Debug("Dumping certificates")
+	slog.Debug("dumping certificates")
 
 	rows, err := db.Queryx("SELECT * FROM certificates")
 	if err != nil {
-		return fmt.Errorf("failed to query certificates: %w", err)
+		return fmt.Errorf("querying certificates: %w", err)
 	}
 	defer rows.Close()
 
@@ -295,15 +305,15 @@ func (db *DB) DumpDB() error {
 	for rows.Next() {
 		var cert CertificateRecord
 		if err := rows.StructScan(&cert); err != nil {
-			return fmt.Errorf("failed to scan certificate: %w", err)
+			return fmt.Errorf("scanning certificate: %w", err)
 		}
-		slog.Debug("Certificate details",
+		slog.Debug("certificate details",
 			"ski", cert.SubjectKeyIdentifier,
 			"cn", cert.CommonName.String,
 			"bundle_name", cert.BundleName,
-			"serial", cert.Serial,
-			"aki", cert.AKI,
-			"type", cert.Type,
+			"serial", cert.SerialNumber,
+			"aki", cert.AuthorityKeyIdentifier,
+			"type", cert.CertType,
 			"key_type", cert.KeyType,
 			"sans", formatSANs(cert.SANsJSON),
 			"not_before", formatTimePtr(cert.NotBefore),
@@ -313,13 +323,13 @@ func (db *DB) DumpDB() error {
 	if err := rows.Err(); err != nil {
 		return fmt.Errorf("iterating certificates: %w", err)
 	}
-	slog.Debug("Total certificates", "count", certCount)
+	slog.Debug("total certificates", "count", certCount)
 
-	slog.Debug("Dumping keys")
+	slog.Debug("dumping keys")
 
 	rows, err = db.Queryx("SELECT subject_key_identifier, key_type FROM keys")
 	if err != nil {
-		return fmt.Errorf("failed to query keys: %w", err)
+		return fmt.Errorf("querying keys: %w", err)
 	}
 	defer rows.Close()
 
@@ -327,15 +337,15 @@ func (db *DB) DumpDB() error {
 	for rows.Next() {
 		var key KeyRecord
 		if err := rows.StructScan(&key); err != nil {
-			return fmt.Errorf("failed to scan key: %w", err)
+			return fmt.Errorf("scanning key: %w", err)
 		}
-		slog.Debug("Key record", "ski", key.SubjectKeyIdentifier, "type", strings.ToUpper(key.KeyType))
+		slog.Debug("key record", "ski", key.SubjectKeyIdentifier, "type", strings.ToUpper(key.KeyType))
 		keyCount++
 	}
 	if err := rows.Err(); err != nil {
 		return fmt.Errorf("iterating keys: %w", err)
 	}
-	slog.Debug("Total keys", "count", keyCount)
+	slog.Debug("total keys", "count", keyCount)
 
 	return nil
 }

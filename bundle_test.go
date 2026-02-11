@@ -292,8 +292,8 @@ func TestFetchCertFromURL_http404(t *testing.T) {
 	if err == nil {
 		t.Error("expected error for HTTP 404")
 	}
-	if !strings.Contains(err.Error(), "http 404") {
-		t.Errorf("error should mention http 404, got: %v", err)
+	if !strings.Contains(err.Error(), "HTTP 404") {
+		t.Errorf("error should mention HTTP 404, got: %v", err)
 	}
 }
 
