@@ -1338,42 +1338,30 @@ func TestCertFingerprintColonSHA1_DifferentFromSHA256(t *testing.T) {
 }
 
 func TestGenerateRSAKey(t *testing.T) {
-	key, err := GenerateRSAKey(2048)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if key.N.BitLen() != 2048 {
-		t.Errorf("expected 2048-bit key, got %d", key.N.BitLen())
-	}
-}
-
-func TestGenerateRSAKey_4096(t *testing.T) {
-	key, err := GenerateRSAKey(4096)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if key.N.BitLen() != 4096 {
-		t.Errorf("expected 4096-bit key, got %d", key.N.BitLen())
+	for _, bits := range []int{2048, 4096} {
+		t.Run(fmt.Sprintf("%d", bits), func(t *testing.T) {
+			key, err := GenerateRSAKey(bits)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if key.N.BitLen() != bits {
+				t.Errorf("expected %d-bit key, got %d", bits, key.N.BitLen())
+			}
+		})
 	}
 }
 
-func TestGenerateECKey_P256(t *testing.T) {
-	key, err := GenerateECKey(elliptic.P256())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if key.Curve != elliptic.P256() {
-		t.Errorf("expected P-256 curve, got %s", key.Curve.Params().Name)
-	}
-}
-
-func TestGenerateECKey_P384(t *testing.T) {
-	key, err := GenerateECKey(elliptic.P384())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if key.Curve != elliptic.P384() {
-		t.Errorf("expected P-384 curve, got %s", key.Curve.Params().Name)
+func TestGenerateECKey(t *testing.T) {
+	for _, curve := range []elliptic.Curve{elliptic.P256(), elliptic.P384()} {
+		t.Run(curve.Params().Name, func(t *testing.T) {
+			key, err := GenerateECKey(curve)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if key.Curve != curve {
+				t.Errorf("expected %s curve, got %s", curve.Params().Name, key.Curve.Params().Name)
+			}
+		})
 	}
 }
 
