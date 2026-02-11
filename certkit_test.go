@@ -94,19 +94,21 @@ func TestCertFingerprint(t *testing.T) {
 	_, _, leafPEM := generateTestPKI(t)
 	cert, _ := ParsePEMCertificate([]byte(leafPEM))
 
-	fp := CertFingerprint(cert)
-	if len(fp) != 64 { // SHA-256 hex = 64 chars
-		t.Errorf("fingerprint length %d, want 64", len(fp))
+	tests := []struct {
+		name    string
+		fn      func(*x509.Certificate) string
+		wantLen int
+	}{
+		{"SHA256", CertFingerprint, 64},
+		{"SHA1", CertFingerprintSHA1, 40},
 	}
-}
-
-func TestCertFingerprintSHA1(t *testing.T) {
-	_, _, leafPEM := generateTestPKI(t)
-	cert, _ := ParsePEMCertificate([]byte(leafPEM))
-
-	fp := CertFingerprintSHA1(cert)
-	if len(fp) != 40 { // SHA-1 hex = 40 chars
-		t.Errorf("SHA-1 fingerprint length %d, want 40", len(fp))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fp := tt.fn(cert)
+			if len(fp) != tt.wantLen {
+				t.Errorf("fingerprint length %d, want %d", len(fp), tt.wantLen)
+			}
+		})
 	}
 }
 
