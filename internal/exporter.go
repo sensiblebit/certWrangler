@@ -332,6 +332,9 @@ func generateCSR(cert *CertificateRecord, key *KeyRecord, bundleConfig *BundleCo
 		shouldExcludeWWW = hasCN && hasWWWCN
 	}
 
+	// Detect wildcard SANs (e.g., "*.example.com") so we can exclude the
+	// redundant bare domain from the CSR. The "*.example.com" CN in bundle
+	// configs is a literal string match, not a glob pattern.
 	hasWildcard := false
 	var wildcardDomain string
 	for _, name := range existingCert.DNSNames {
@@ -508,6 +511,9 @@ func exportBundleCerts(ctx context.Context, db *DB, opts certkit.BundleOptions, 
 }
 
 // determineBundleName determines the bundle name for a certificate based on the provided bundle configurations.
+// determineBundleName finds the bundle name for a certificate's CN.
+// Matching is exact string comparison — "*.example.com" in the config matches
+// a cert whose CN is literally "*.example.com", not a glob pattern.
 func determineBundleName(cn string, configs []BundleConfig) string {
 	for _, cfg := range configs {
 		for _, pattern := range cfg.CommonNames {
