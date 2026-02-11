@@ -45,36 +45,28 @@ func TestFormatIPAddresses_Empty(t *testing.T) {
 	}
 }
 
-func TestPublicKeyAlgorithmName_RSA(t *testing.T) {
-	key, _ := rsa.GenerateKey(rand.Reader, 2048)
-	result := certkit.PublicKeyAlgorithmName(&key.PublicKey)
-	if result != "RSA" {
-		t.Errorf("expected 'RSA', got %q", result)
-	}
-}
-
-func TestPublicKeyAlgorithmName_ECDSA(t *testing.T) {
+func TestPublicKeyAlgorithmName(t *testing.T) {
+	rsaKey, _ := rsa.GenerateKey(rand.Reader, 2048)
 	ca := newECDSACA(t)
-	pub := ca.cert.PublicKey
-	result := certkit.PublicKeyAlgorithmName(pub)
-	if result != "ECDSA" {
-		t.Errorf("expected 'ECDSA', got %q", result)
-	}
-}
+	rsaCA := newRSACA(t)
+	ed25519Leaf := newEd25519Leaf(t, rsaCA, "test.com", []string{"test.com"})
 
-func TestPublicKeyAlgorithmName_Ed25519(t *testing.T) {
-	ca := newRSACA(t)
-	leaf := newEd25519Leaf(t, ca, "test.com", []string{"test.com"})
-	result := certkit.PublicKeyAlgorithmName(leaf.cert.PublicKey)
-	if result != "Ed25519" {
-		t.Errorf("expected 'Ed25519', got %q", result)
+	tests := []struct {
+		name string
+		key  any
+		want string
+	}{
+		{"RSA", &rsaKey.PublicKey, "RSA"},
+		{"ECDSA", ca.cert.PublicKey, "ECDSA"},
+		{"Ed25519", ed25519Leaf.cert.PublicKey, "Ed25519"},
+		{"Unknown", "not a key", "unknown"},
 	}
-}
-
-func TestPublicKeyAlgorithmName_Unknown(t *testing.T) {
-	result := certkit.PublicKeyAlgorithmName("not a key")
-	if result != "unknown" {
-		t.Errorf("expected 'unknown', got %q", result)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := certkit.PublicKeyAlgorithmName(tt.key); got != tt.want {
+				t.Errorf("PublicKeyAlgorithmName() = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }
 
