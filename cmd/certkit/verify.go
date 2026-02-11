@@ -40,8 +40,7 @@ func init() {
 
 // parseDuration extends time.ParseDuration to support a "d" suffix for days.
 func parseDuration(s string) (time.Duration, error) {
-	if strings.HasSuffix(s, "d") {
-		trimmed := strings.TrimSuffix(s, "d")
+	if trimmed, ok := strings.CutSuffix(s, "d"); ok {
 		days, err := strconv.Atoi(trimmed)
 		if err != nil {
 			return 0, fmt.Errorf("invalid day duration %q: %w", s, err)
