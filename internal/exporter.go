@@ -195,11 +195,7 @@ func generateJSON(bundle *certkit.BundleResult) ([]byte, error) {
 		subjectKeyID = fmt.Sprintf("%X", bundle.Leaf.SubjectKeyId)
 	}
 
-	var sans []string
-	sans = append(sans, bundle.Leaf.DNSNames...)
-	for _, ip := range bundle.Leaf.IPAddresses {
-		sans = append(sans, ip.String())
-	}
+	sans := slices.Concat(bundle.Leaf.DNSNames, formatIPAddresses(bundle.Leaf.IPAddresses))
 
 	out := map[string]any{
 		"authority_key_id": authorityKeyID,
@@ -241,11 +237,7 @@ func generateYAML(key *KeyRecord, bundle *certkit.BundleResult) ([]byte, error) 
 	keyString := strings.ReplaceAll(string(key.KeyData), "\r\n", "\n")
 
 	// Compute hostnames from leaf
-	var hostnames []string
-	hostnames = append(hostnames, bundle.Leaf.DNSNames...)
-	for _, ip := range bundle.Leaf.IPAddresses {
-		hostnames = append(hostnames, ip.String())
-	}
+	hostnames := slices.Concat(bundle.Leaf.DNSNames, formatIPAddresses(bundle.Leaf.IPAddresses))
 
 	out := map[string]any{
 		"bundle":        string(chainPEM),
