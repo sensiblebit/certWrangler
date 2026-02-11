@@ -375,6 +375,3 @@ func TestGenerateCSRFromCSR_DifferentKey(t *testing.T) {
 		t.Error("new CSR should have a different public key than source")
 	}
 }
-
-// Suppress unused import warnings
-var _ = rand.Reader
