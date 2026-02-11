@@ -89,7 +89,8 @@ func runScan(cmd *cobra.Command, args []string) error {
 
 		err := filepath.WalkDir(inputPath, func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
-				return err
+				slog.Warn("skipping inaccessible path", "path", path, "error", err)
+				return filepath.SkipDir
 			}
 			if !d.IsDir() {
 				if err := internal.ProcessFile(path, cfg); err != nil {
