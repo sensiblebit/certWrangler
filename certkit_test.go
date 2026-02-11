@@ -980,15 +980,21 @@ func TestKeyMatchesCert_UnsupportedKey(t *testing.T) {
 	}
 }
 
-func TestIsPEM_True(t *testing.T) {
-	if !IsPEM([]byte("-----BEGIN CERTIFICATE-----\nfoo\n-----END CERTIFICATE-----")) {
-		t.Error("expected true for PEM data")
+func TestIsPEM(t *testing.T) {
+	tests := []struct {
+		name string
+		data []byte
+		want bool
+	}{
+		{"PEM data", []byte("-----BEGIN CERTIFICATE-----\nfoo\n-----END CERTIFICATE-----"), true},
+		{"DER data", []byte{0x30, 0x82, 0x01}, false},
 	}
-}
-
-func TestIsPEM_False(t *testing.T) {
-	if IsPEM([]byte{0x30, 0x82, 0x01}) {
-		t.Error("expected false for DER data")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsPEM(tt.data); got != tt.want {
+				t.Errorf("IsPEM() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
 
