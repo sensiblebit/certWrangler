@@ -161,14 +161,14 @@ func TestInsertDuplicateKey_NilError(t *testing.T) {
 	}
 }
 
-func TestGetCertBySKID_NotFound(t *testing.T) {
+func TestGetCertBySKI_NotFound(t *testing.T) {
 	db, err := NewDB("")
 	if err != nil {
 		t.Fatalf("NewDB: %v", err)
 	}
 	defer db.Close()
 
-	cert, err := db.GetCertBySKID("nonexistent")
+	cert, err := db.GetCertBySKI("nonexistent")
 	if err != nil {
 		t.Errorf("expected nil error for not found, got: %v", err)
 	}
@@ -286,10 +286,10 @@ func TestResolveAKIs_SameMethod(t *testing.T) {
 	defer db.Close()
 
 	// Compute RFC 7093 M1 SKIs
-	rootSKIDRaw, _ := certkit.ComputeSKID(ca.cert.PublicKey)
-	rootSKI := hex.EncodeToString(rootSKIDRaw)
-	leafSKIDRaw, _ := certkit.ComputeSKID(leaf.cert.PublicKey)
-	leafSKI := hex.EncodeToString(leafSKIDRaw)
+	rootSKIRaw, _ := certkit.ComputeSKI(ca.cert.PublicKey)
+	rootSKI := hex.EncodeToString(rootSKIRaw)
+	leafSKIRaw, _ := certkit.ComputeSKI(leaf.cert.PublicKey)
+	leafSKI := hex.EncodeToString(leafSKIRaw)
 
 	now := time.Now()
 
@@ -359,15 +359,15 @@ func TestResolveAKIs_CrossHash(t *testing.T) {
 	defer db.Close()
 
 	// Root's stored SKI is RFC 7093 M1
-	rootSKIDRaw, _ := certkit.ComputeSKID(ca.cert.PublicKey)
-	rootSKI := hex.EncodeToString(rootSKIDRaw)
+	rootSKIRaw, _ := certkit.ComputeSKI(ca.cert.PublicKey)
+	rootSKI := hex.EncodeToString(rootSKIRaw)
 
 	// Leaf's AKI is SHA-1 of root's public key (legacy)
-	rootSKIDLegacy, _ := certkit.ComputeSKIDLegacy(ca.cert.PublicKey)
-	leafAKI := hex.EncodeToString(rootSKIDLegacy)
+	rootSKILegacy, _ := certkit.ComputeSKILegacy(ca.cert.PublicKey)
+	leafAKI := hex.EncodeToString(rootSKILegacy)
 
-	leafSKIDRaw, _ := certkit.ComputeSKID(leaf.cert.PublicKey)
-	leafSKI := hex.EncodeToString(leafSKIDRaw)
+	leafSKIRaw, _ := certkit.ComputeSKI(leaf.cert.PublicKey)
+	leafSKI := hex.EncodeToString(leafSKIRaw)
 
 	// Sanity: the two should differ
 	if rootSKI == leafAKI {

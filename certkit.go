@@ -186,12 +186,12 @@ func CertFingerprintSHA1(cert *x509.Certificate) string {
 	return fmt.Sprintf("%x", hash)
 }
 
-// CertSKID computes a Subject Key Identifier from the certificate's
+// CertSKI computes a Subject Key Identifier from the certificate's
 // public key per RFC 7093 Section 2 Method 1: the leftmost 160 bits
 // of the SHA-256 hash of the BIT STRING value of subjectPublicKey
 // (excluding tag, length, and unused-bits octet). The result is 20
-// bytes, the same length as a SHA-1 SKID, ensuring compatibility.
-func CertSKID(cert *x509.Certificate) string {
+// bytes, the same length as a SHA-1 SKI, ensuring compatibility.
+func CertSKI(cert *x509.Certificate) string {
 	pubKeyBytes, err := extractPublicKeyBitString(cert.RawSubjectPublicKeyInfo)
 	if err != nil {
 		return ""
@@ -200,22 +200,22 @@ func CertSKID(cert *x509.Certificate) string {
 	return ColonHex(hash[:20]) // RFC 7093: leftmost 160 bits
 }
 
-// CertSKIDEmbedded returns the Subject Key Identifier as stored in the
+// CertSKIEmbedded returns the Subject Key Identifier as stored in the
 // certificate extension, as a colon-separated hex string. This may be
 // SHA-1 (20 bytes) or SHA-256 (32 bytes) depending on the issuing CA.
 // Returns empty string if the extension is not present.
-func CertSKIDEmbedded(cert *x509.Certificate) string {
+func CertSKIEmbedded(cert *x509.Certificate) string {
 	if len(cert.SubjectKeyId) == 0 {
 		return ""
 	}
 	return ColonHex(cert.SubjectKeyId)
 }
 
-// CertAKIDEmbedded returns the Authority Key Identifier as stored in the
+// CertAKIEmbedded returns the Authority Key Identifier as stored in the
 // certificate extension, as a colon-separated hex string. This matches the
-// issuing CA's embedded SKID and may be SHA-1 or SHA-256.
+// issuing CA's embedded SKI and may be SHA-1 or SHA-256.
 // Returns empty string if the extension is not present.
-func CertAKIDEmbedded(cert *x509.Certificate) string {
+func CertAKIEmbedded(cert *x509.Certificate) string {
 	if len(cert.AuthorityKeyId) == 0 {
 		return ""
 	}
@@ -276,9 +276,9 @@ func extractPublicKeyBitString(spkiDER []byte) ([]byte, error) {
 	return spki.PublicKey.Bytes, nil
 }
 
-// ComputeSKID computes a Subject Key Identifier using RFC 7093 Method 1:
+// ComputeSKI computes a Subject Key Identifier using RFC 7093 Method 1:
 // SHA-256 of subjectPublicKey BIT STRING bytes, truncated to 160 bits (20 bytes).
-func ComputeSKID(pub crypto.PublicKey) ([]byte, error) {
+func ComputeSKI(pub crypto.PublicKey) ([]byte, error) {
 	der, err := x509.MarshalPKIXPublicKey(pub)
 	if err != nil {
 		return nil, fmt.Errorf("marshal PKIX: %w", err)
@@ -291,10 +291,10 @@ func ComputeSKID(pub crypto.PublicKey) ([]byte, error) {
 	return sum[:20], nil
 }
 
-// ComputeSKIDLegacy computes a Subject Key Identifier using the RFC 5280 method:
+// ComputeSKILegacy computes a Subject Key Identifier using the RFC 5280 method:
 // SHA-1 of subjectPublicKey BIT STRING bytes (20 bytes).
 // Used only for AKI cross-matching with legacy certificates.
-func ComputeSKIDLegacy(pub crypto.PublicKey) ([]byte, error) {
+func ComputeSKILegacy(pub crypto.PublicKey) ([]byte, error) {
 	der, err := x509.MarshalPKIXPublicKey(pub)
 	if err != nil {
 		return nil, fmt.Errorf("marshal PKIX: %w", err)

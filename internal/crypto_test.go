@@ -163,57 +163,57 @@ func TestGetCertificateType_Intermediate(t *testing.T) {
 	}
 }
 
-func TestComputeSKID_RFC7093Method1(t *testing.T) {
+func TestComputeSKI_RFC7093Method1(t *testing.T) {
 	key, _ := rsa.GenerateKey(rand.Reader, 2048)
-	raw, err := certkit.ComputeSKID(&key.PublicKey)
+	raw, err := certkit.ComputeSKI(&key.PublicKey)
 	if err != nil {
-		t.Fatalf("computeSKID: %v", err)
+		t.Fatalf("computeSKI: %v", err)
 	}
 	if len(raw) != 20 {
 		t.Errorf("expected 20 bytes (RFC 7093 M1: truncated SHA-256), got %d", len(raw))
 	}
 }
 
-func TestComputeSKIDLegacy_SHA1(t *testing.T) {
+func TestComputeSKILegacy_SHA1(t *testing.T) {
 	key, _ := rsa.GenerateKey(rand.Reader, 2048)
-	raw, err := certkit.ComputeSKIDLegacy(&key.PublicKey)
+	raw, err := certkit.ComputeSKILegacy(&key.PublicKey)
 	if err != nil {
-		t.Fatalf("computeSKIDLegacy: %v", err)
+		t.Fatalf("computeSKILegacy: %v", err)
 	}
 	if len(raw) != 20 {
 		t.Errorf("expected 20 bytes for SHA-1, got %d", len(raw))
 	}
 }
 
-func TestComputeSKID_VsLegacy_Different(t *testing.T) {
+func TestComputeSKI_VsLegacy_Different(t *testing.T) {
 	key, _ := rsa.GenerateKey(rand.Reader, 2048)
-	rfc7093, _ := certkit.ComputeSKID(&key.PublicKey)
-	legacy, _ := certkit.ComputeSKIDLegacy(&key.PublicKey)
+	rfc7093, _ := certkit.ComputeSKI(&key.PublicKey)
+	legacy, _ := certkit.ComputeSKILegacy(&key.PublicKey)
 
 	if hex.EncodeToString(rfc7093) == hex.EncodeToString(legacy) {
-		t.Error("RFC 7093 M1 and legacy SHA-1 SKIDs should differ for the same key")
+		t.Error("RFC 7093 M1 and legacy SHA-1 SKIs should differ for the same key")
 	}
 }
 
-func TestComputeSKID_Deterministic(t *testing.T) {
+func TestComputeSKI_Deterministic(t *testing.T) {
 	key, _ := rsa.GenerateKey(rand.Reader, 2048)
-	raw1, _ := certkit.ComputeSKID(&key.PublicKey)
-	raw2, _ := certkit.ComputeSKID(&key.PublicKey)
+	raw1, _ := certkit.ComputeSKI(&key.PublicKey)
+	raw2, _ := certkit.ComputeSKI(&key.PublicKey)
 
 	if hex.EncodeToString(raw1) != hex.EncodeToString(raw2) {
-		t.Error("computeSKID should return the same result for the same key")
+		t.Error("computeSKI should return the same result for the same key")
 	}
 }
 
-func TestComputeSKID_DifferentKeysProduceDifferentSKIDs(t *testing.T) {
+func TestComputeSKI_DifferentKeysProduceDifferentSKIDs(t *testing.T) {
 	key1, _ := rsa.GenerateKey(rand.Reader, 2048)
 	key2, _ := rsa.GenerateKey(rand.Reader, 2048)
 
-	raw1, _ := certkit.ComputeSKID(&key1.PublicKey)
-	raw2, _ := certkit.ComputeSKID(&key2.PublicKey)
+	raw1, _ := certkit.ComputeSKI(&key1.PublicKey)
+	raw2, _ := certkit.ComputeSKI(&key2.PublicKey)
 
 	if hex.EncodeToString(raw1) == hex.EncodeToString(raw2) {
-		t.Error("different keys should produce different SKIDs")
+		t.Error("different keys should produce different SKIs")
 	}
 }
 
@@ -299,10 +299,10 @@ func TestProcessFile_PEMCertificate(t *testing.T) {
 	}
 
 	// Compute expected SKI from the leaf's public key
-	expectedSKI := computeSKIDHex(t, leaf.cert.PublicKey)
+	expectedSKI := computeSKIHex(t, leaf.cert.PublicKey)
 
 	// Verify certificate was inserted with computed SKI
-	cert, err := cfg.DB.GetCertBySKID(expectedSKI)
+	cert, err := cfg.DB.GetCertBySKI(expectedSKI)
 	if err != nil {
 		t.Fatalf("GetCertBySKID: %v", err)
 	}
@@ -352,8 +352,8 @@ func TestProcessFile_DERCertificate(t *testing.T) {
 		t.Fatalf("ProcessFile: %v", err)
 	}
 
-	expectedSKI := computeSKIDHex(t, leaf.cert.PublicKey)
-	cert, err := cfg.DB.GetCertBySKID(expectedSKI)
+	expectedSKI := computeSKIHex(t, leaf.cert.PublicKey)
+	cert, err := cfg.DB.GetCertBySKI(expectedSKI)
 	if err != nil {
 		t.Fatalf("GetCertBySKID: %v", err)
 	}
@@ -437,8 +437,8 @@ func TestProcessFile_JKS(t *testing.T) {
 		t.Error("expected at least 1 key from JKS")
 	}
 
-	expectedSKI := computeSKIDHex(t, leaf.cert.PublicKey)
-	cert, err := cfg.DB.GetCertBySKID(expectedSKI)
+	expectedSKI := computeSKIHex(t, leaf.cert.PublicKey)
+	cert, err := cfg.DB.GetCertBySKI(expectedSKI)
 	if err != nil {
 		t.Fatalf("GetCertBySKID: %v", err)
 	}
@@ -463,8 +463,8 @@ func TestProcessFile_ExpiredCertSkipped(t *testing.T) {
 		t.Fatalf("ProcessFile: %v", err)
 	}
 
-	expectedSKI := computeSKIDHex(t, expired.cert.PublicKey)
-	cert, _ := cfg.DB.GetCertBySKID(expectedSKI)
+	expectedSKI := computeSKIHex(t, expired.cert.PublicKey)
+	cert, _ := cfg.DB.GetCertBySKI(expectedSKI)
 	if cert != nil {
 		t.Error("expired certificate should not be inserted into DB")
 	}
@@ -535,16 +535,16 @@ func TestProcessFile_MultipleCertsInOneFile(t *testing.T) {
 	}
 
 	// Both certs should be in DB - look up by computed SKI from public key
-	ski1 := computeSKIDHex(t, leaf1.cert.PublicKey)
-	c1, _ := cfg.DB.GetCertBySKID(ski1)
+	ski1 := computeSKIHex(t, leaf1.cert.PublicKey)
+	c1, _ := cfg.DB.GetCertBySKI(ski1)
 	if c1 == nil {
 		t.Error("expected first certificate to be in DB")
 	}
 
 	// For the second cert, compute SKI from its public key
 	cert2, _ := x509.ParseCertificate(cert2DER)
-	ski2 := computeSKIDHex(t, cert2.PublicKey)
-	c2, _ := cfg.DB.GetCertBySKID(ski2)
+	ski2 := computeSKIHex(t, cert2.PublicKey)
+	c2, _ := cfg.DB.GetCertBySKI(ski2)
 	if c2 == nil {
 		t.Error("expected second certificate to be in DB")
 	}
@@ -604,8 +604,8 @@ func TestProcessFile_PEMCertificateWithIP(t *testing.T) {
 		t.Fatalf("ProcessFile: %v", err)
 	}
 
-	expectedSKI := computeSKIDHex(t, leaf.cert.PublicKey)
-	cert, _ := cfg.DB.GetCertBySKID(expectedSKI)
+	expectedSKI := computeSKIHex(t, leaf.cert.PublicKey)
+	cert, _ := cfg.DB.GetCertBySKI(expectedSKI)
 	if cert == nil {
 		t.Error("expected cert with IP SAN to be inserted")
 	}
@@ -613,11 +613,11 @@ func TestProcessFile_PEMCertificateWithIP(t *testing.T) {
 
 // -- helpers for tests --
 
-func computeSKIDHex(t *testing.T, pub crypto.PublicKey) string {
+func computeSKIHex(t *testing.T, pub crypto.PublicKey) string {
 	t.Helper()
-	raw, err := certkit.ComputeSKID(pub)
+	raw, err := certkit.ComputeSKI(pub)
 	if err != nil {
-		t.Fatalf("computeSKIDHex: %v", err)
+		t.Fatalf("computeSKIHex: %v", err)
 	}
 	return hex.EncodeToString(raw)
 }

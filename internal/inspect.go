@@ -28,8 +28,8 @@ type InspectResult struct {
 	SANs        []string `json:"sans,omitempty"`
 	SHA256      string   `json:"sha256_fingerprint,omitempty"`
 	SHA1        string   `json:"sha1_fingerprint,omitempty"`
-	SKID        string   `json:"subject_key_id,omitempty"`
-	AKID        string   `json:"authority_key_id,omitempty"`
+	SKI         string   `json:"subject_key_id,omitempty"`
+	AKI         string   `json:"authority_key_id,omitempty"`
 	SigAlg      string   `json:"signature_algorithm,omitempty"`
 	KeyType     string   `json:"key_type,omitempty"`
 	CSRSubject  string   `json:"csr_subject,omitempty"`
@@ -128,8 +128,8 @@ func inspectCert(cert *x509.Certificate) InspectResult {
 		SANs:      sans,
 		SHA256:    certkit.CertFingerprintColonSHA256(cert),
 		SHA1:      certkit.CertFingerprintColonSHA1(cert),
-		SKID:      certkit.CertSKIDEmbedded(cert),
-		AKID:      certkit.CertAKIDEmbedded(cert),
+		SKI:       certkit.CertSKIEmbedded(cert),
+		AKI:       certkit.CertAKIEmbedded(cert),
 		SigAlg:    cert.SignatureAlgorithm.String(),
 	}
 }
@@ -217,11 +217,11 @@ func formatInspectText(results []InspectResult) string {
 			fmt.Fprintf(&sb, "  Signature:   %s\n", r.SigAlg)
 			fmt.Fprintf(&sb, "  SHA-256:     %s\n", r.SHA256)
 			fmt.Fprintf(&sb, "  SHA-1:       %s\n", r.SHA1)
-			if r.SKID != "" {
-				fmt.Fprintf(&sb, "  SKID:        %s\n", r.SKID)
+			if r.SKI != "" {
+				fmt.Fprintf(&sb, "  SKI:         %s\n", r.SKI)
 			}
-			if r.AKID != "" {
-				fmt.Fprintf(&sb, "  AKID:        %s\n", r.AKID)
+			if r.AKI != "" {
+				fmt.Fprintf(&sb, "  AKI:         %s\n", r.AKI)
 			}
 			if len(r.SANs) > 0 {
 				fmt.Fprintf(&sb, "  SANs:        %s\n", strings.Join(r.SANs, ", "))

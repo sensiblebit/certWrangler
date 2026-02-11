@@ -310,7 +310,7 @@ key, _ := certkit.ParsePEMPrivateKey(keyPEM)
 // Compute identifiers
 fingerprint := certkit.CertFingerprint(cert)
 colonFP := certkit.CertFingerprintColonSHA256(cert)  // AA:BB:CC format
-skid := certkit.CertSKID(cert)
+ski := certkit.CertSKI(cert)
 
 // Check expiry
 if certkit.CertExpiresWithin(cert, 30*24*time.Hour) {

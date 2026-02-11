@@ -57,12 +57,12 @@ func processPEMCertificates(data []byte, path string, cfg *Config) bool {
 		}
 		found = true
 		// Always compute SKI from the public key (never use embedded SubjectKeyId)
-		rawSKID, err := certkit.ComputeSKID(cert.PublicKey)
+		rawSKI, err := certkit.ComputeSKI(cert.PublicKey)
 		if err != nil {
-			slog.Error("computing SKID for certificate", "serial", cert.SerialNumber, "error", err)
+			slog.Error("computing SKI for certificate", "serial", cert.SerialNumber, "error", err)
 			continue
 		}
-		skid := hex.EncodeToString(rawSKID)
+		ski := hex.EncodeToString(rawSKI)
 
 		certType := certkit.GetCertificateType(cert)
 
@@ -70,7 +70,7 @@ func processPEMCertificates(data []byte, path string, cfg *Config) bool {
 		// For non-root certificates, temporarily use embedded AKI; ResolveAKIs will fix it later
 		var akiHex string
 		if certType == "root" {
-			akiHex = skid
+			akiHex = ski
 		} else {
 			akiHex = hex.EncodeToString(cert.AuthorityKeyId)
 		}
@@ -105,7 +105,7 @@ func processPEMCertificates(data []byte, path string, cfg *Config) bool {
 			CertType:               certType,
 			KeyType:                getKeyType(cert),
 			PEM:                    string(certPEM),
-			SubjectKeyIdentifier:   skid,
+			SubjectKeyIdentifier:   ski,
 			NotBefore:              &cert.NotBefore,
 			Expiry:                 cert.NotAfter,
 			CommonName:             sql.NullString{String: cert.Subject.CommonName, Valid: cert.Subject.CommonName != ""},
@@ -116,10 +116,10 @@ func processPEMCertificates(data []byte, path string, cfg *Config) bool {
 		if err := cfg.DB.InsertCertificate(certRecord); err != nil {
 			slog.Warn("inserting certificate into database", "error", err)
 		} else {
-			slog.Debug("inserted certificate into database", "serial", cert.SerialNumber.String(), "skid", skid)
+			slog.Debug("inserted certificate into database", "serial", cert.SerialNumber.String(), "ski", ski)
 		}
 
-		slog.Info("found certificate", "path", path, "skid", skid)
+		slog.Info("found certificate", "path", path, "ski", ski)
 	}
 	return found
 }
@@ -132,15 +132,15 @@ func processPEMCSR(data []byte, path string) bool {
 		return false
 	}
 
-	skid := "N/A"
+	ski := "N/A"
 	if pub := csr.PublicKey; pub != nil {
-		if rawSKID, err := certkit.ComputeSKID(pub); err == nil {
-			skid = hex.EncodeToString(rawSKID)
+		if rawSKI, err := certkit.ComputeSKI(pub); err == nil {
+			ski = hex.EncodeToString(rawSKI)
 		} else {
-			slog.Debug("computeSKID error on CSR", "path", path, "error", err)
+			slog.Debug("computeSKI error on CSR", "path", path, "error", err)
 		}
 	}
-	slog.Info("found CSR", "path", path, "skid", skid)
+	slog.Info("found CSR", "path", path, "ski", ski)
 	return true
 }
 
@@ -167,26 +167,26 @@ func processPEMPrivateKeys(data []byte, path string, cfg *Config) {
 			continue
 		}
 
-		skid := "N/A"
+		ski := "N/A"
 		pub, err := certkit.GetPublicKey(key)
 		if err != nil {
 			slog.Debug("getPublicKey error", "path", path, "error", err)
-			slog.Info("found private key", "path", path, "skid", skid)
+			slog.Info("found private key", "path", path, "ski", ski)
 			continue
 		}
 
 		slog.Debug("got public key", "type", fmt.Sprintf("%T", pub))
-		rawSKID, err := certkit.ComputeSKID(pub)
+		rawSKI, err := certkit.ComputeSKI(pub)
 		if err != nil {
-			slog.Debug("computeSKID error on private key", "path", path, "error", err)
-			slog.Info("found private key", "path", path, "skid", skid)
+			slog.Debug("computeSKI error on private key", "path", path, "error", err)
+			slog.Info("found private key", "path", path, "ski", ski)
 			continue
 		}
 
-		skid = hex.EncodeToString(rawSKID)
+		ski = hex.EncodeToString(rawSKI)
 
 		rec := KeyRecord{
-			SubjectKeyIdentifier: skid,
+			SubjectKeyIdentifier: ski,
 		}
 		switch k := key.(type) {
 		case *rsa.PrivateKey:
@@ -228,10 +228,10 @@ func processPEMPrivateKeys(data []byte, path string, cfg *Config) {
 		if err := cfg.DB.InsertKey(rec); err != nil {
 			slog.Warn("inserting key into database", "error", err)
 		} else {
-			slog.Debug("inserted key into database", "skid", skid)
+			slog.Debug("inserted key into database", "ski", ski)
 		}
 
-		slog.Info("found private key", "path", path, "skid", skid)
+		slog.Info("found private key", "path", path, "ski", ski)
 	}
 }
 

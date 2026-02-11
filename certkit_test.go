@@ -150,19 +150,19 @@ func TestCertToPEM(t *testing.T) {
 	}
 }
 
-func TestCertSKID_RFC7093(t *testing.T) {
+func TestCertSKI_RFC7093(t *testing.T) {
 	_, _, leafPEM := generateTestPKI(t)
 	leaf, _ := ParsePEMCertificate([]byte(leafPEM))
 
-	skid := CertSKID(leaf)
-	if skid == "" {
-		t.Fatal("CertSKID returned empty string")
+	ski := CertSKI(leaf)
+	if ski == "" {
+		t.Fatal("CertSKI returned empty string")
 	}
 
 	// RFC 7093 Method 1: leftmost 160 bits of SHA-256 = 20 bytes
 	// 20 bytes = 40 hex chars + 19 colons = 59 chars
-	if len(skid) != 59 {
-		t.Errorf("SKID length %d, want 59 (20 bytes colon-separated)", len(skid))
+	if len(ski) != 59 {
+		t.Errorf("SKI length %d, want 59 (20 bytes colon-separated)", len(ski))
 	}
 
 	// Verify it matches manual computation
@@ -176,29 +176,29 @@ func TestCertSKID_RFC7093(t *testing.T) {
 	}
 	hash := sha256.Sum256(spki.PublicKey.Bytes)
 	expected := ColonHex(hash[:20])
-	if skid != expected {
-		t.Errorf("SKID mismatch:\n  got:  %s\n  want: %s", skid, expected)
+	if ski != expected {
+		t.Errorf("SKI mismatch:\n  got:  %s\n  want: %s", ski, expected)
 	}
 }
 
-func TestCertSKIDEmbedded(t *testing.T) {
+func TestCertSKIEmbedded(t *testing.T) {
 	caPEM, _, leafPEM := generateTestPKI(t)
 
 	ca, _ := ParsePEMCertificate([]byte(caPEM))
 	leaf, _ := ParsePEMCertificate([]byte(leafPEM))
 
-	caSKID := CertSKIDEmbedded(ca)
-	if caSKID != "" && (!strings.Contains(caSKID, ":") || len(caSKID) < 5) {
-		t.Errorf("CA embedded SKID format unexpected: %q", caSKID)
+	caSKI := CertSKIEmbedded(ca)
+	if caSKI != "" && (!strings.Contains(caSKI, ":") || len(caSKI) < 5) {
+		t.Errorf("CA embedded SKI format unexpected: %q", caSKI)
 	}
 
-	leafAKID := CertAKIDEmbedded(leaf)
-	if leafAKID != "" && (!strings.Contains(leafAKID, ":") || len(leafAKID) < 5) {
-		t.Errorf("Leaf embedded AKID format unexpected: %q", leafAKID)
+	leafAKI := CertAKIEmbedded(leaf)
+	if leafAKI != "" && (!strings.Contains(leafAKI, ":") || len(leafAKI) < 5) {
+		t.Errorf("Leaf embedded AKI format unexpected: %q", leafAKI)
 	}
 }
 
-func TestCertSKID_vs_Embedded(t *testing.T) {
+func TestCertSKI_vs_Embedded(t *testing.T) {
 	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 
 	var spki struct {
@@ -216,26 +216,26 @@ func TestCertSKID_vs_Embedded(t *testing.T) {
 		Subject:      pkix.Name{CommonName: "test"},
 		NotBefore:    time.Now().Add(-1 * time.Hour),
 		NotAfter:     time.Now().Add(24 * time.Hour),
-		SubjectKeyId: sha1Hash[:], // SHA-1 embedded SKID
+		SubjectKeyId: sha1Hash[:], // SHA-1 embedded SKI
 	}
 	certBytes, _ := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
 	cert, _ := x509.ParseCertificate(certBytes)
 
-	computed := CertSKID(cert)
-	embedded := CertSKIDEmbedded(cert)
+	computed := CertSKI(cert)
+	embedded := CertSKIEmbedded(cert)
 
 	if len(computed) != 59 {
-		t.Errorf("computed SKID length %d, want 59", len(computed))
+		t.Errorf("computed SKI length %d, want 59", len(computed))
 	}
 	if len(embedded) != 59 {
-		t.Errorf("embedded SKID length %d, want 59", len(embedded))
+		t.Errorf("embedded SKI length %d, want 59", len(embedded))
 	}
 	if computed == embedded {
 		t.Error("computed (truncated SHA-256) should differ from embedded (SHA-1)")
 	}
 }
 
-func TestCertSKID_RFC7093Embedded(t *testing.T) {
+func TestCertSKI_RFC7093Embedded(t *testing.T) {
 	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 
 	var spki struct {
@@ -258,18 +258,18 @@ func TestCertSKID_RFC7093Embedded(t *testing.T) {
 	certBytes, _ := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
 	cert, _ := x509.ParseCertificate(certBytes)
 
-	computed := CertSKID(cert)
-	embedded := CertSKIDEmbedded(cert)
+	computed := CertSKI(cert)
+	embedded := CertSKIEmbedded(cert)
 
 	if computed != embedded {
-		t.Errorf("when CA embeds RFC 7093 SKID, computed and embedded should match:\n  computed: %s\n  embedded: %s", computed, embedded)
+		t.Errorf("when CA embeds RFC 7093 SKI, computed and embedded should match:\n  computed: %s\n  embedded: %s", computed, embedded)
 	}
 	if len(computed) != 59 {
 		t.Errorf("computed length %d, want 59", len(computed))
 	}
 }
 
-func TestCertSKID_FullSHA256Embedded(t *testing.T) {
+func TestCertSKI_FullSHA256Embedded(t *testing.T) {
 	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 
 	var spki struct {
@@ -292,8 +292,8 @@ func TestCertSKID_FullSHA256Embedded(t *testing.T) {
 	certBytes, _ := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
 	cert, _ := x509.ParseCertificate(certBytes)
 
-	computed := CertSKID(cert)
-	embedded := CertSKIDEmbedded(cert)
+	computed := CertSKI(cert)
+	embedded := CertSKIEmbedded(cert)
 
 	if len(computed) != 59 {
 		t.Errorf("computed length %d, want 59", len(computed))
@@ -306,25 +306,25 @@ func TestCertSKID_FullSHA256Embedded(t *testing.T) {
 	}
 }
 
-func TestCertSKIDEmbedded_empty(t *testing.T) {
+func TestCertSKIEmbedded_empty(t *testing.T) {
 	cert := &x509.Certificate{SubjectKeyId: nil}
-	if got := CertSKIDEmbedded(cert); got != "" {
+	if got := CertSKIEmbedded(cert); got != "" {
 		t.Errorf("expected empty string for nil SubjectKeyId, got %q", got)
 	}
 }
 
-func TestCertAKIDEmbedded_empty(t *testing.T) {
+func TestCertAKIEmbedded_empty(t *testing.T) {
 	cert := &x509.Certificate{AuthorityKeyId: nil}
-	if got := CertAKIDEmbedded(cert); got != "" {
+	if got := CertAKIEmbedded(cert); got != "" {
 		t.Errorf("expected empty string for nil AuthorityKeyId, got %q", got)
 	}
 }
 
-func TestCertSKID_errorReturnsEmpty(t *testing.T) {
+func TestCertSKI_errorReturnsEmpty(t *testing.T) {
 	cert := &x509.Certificate{RawSubjectPublicKeyInfo: []byte{}}
-	skid := CertSKID(cert)
-	if skid != "" {
-		t.Errorf("expected empty string for invalid SPKI, got %q", skid)
+	ski := CertSKI(cert)
+	if ski != "" {
+		t.Errorf("expected empty string for invalid SPKI, got %q", ski)
 	}
 }
 
@@ -782,41 +782,41 @@ func TestMarshalPrivateKeyToPEM_unsupported(t *testing.T) {
 	}
 }
 
-func TestComputeSKID_RFC7093Method1(t *testing.T) {
+func TestComputeSKI_RFC7093Method1(t *testing.T) {
 	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	skid, err := ComputeSKID(&key.PublicKey)
+	ski, err := ComputeSKI(&key.PublicKey)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(skid) != 20 {
-		t.Errorf("expected 20 bytes, got %d", len(skid))
+	if len(ski) != 20 {
+		t.Errorf("expected 20 bytes, got %d", len(ski))
 	}
 }
 
-func TestComputeSKIDLegacy_SHA1(t *testing.T) {
+func TestComputeSKILegacy_SHA1(t *testing.T) {
 	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	skid, err := ComputeSKIDLegacy(&key.PublicKey)
+	ski, err := ComputeSKILegacy(&key.PublicKey)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(skid) != 20 {
-		t.Errorf("expected 20 bytes, got %d", len(skid))
+	if len(ski) != 20 {
+		t.Errorf("expected 20 bytes, got %d", len(ski))
 	}
 }
 
-func TestComputeSKID_VsLegacy_Different(t *testing.T) {
+func TestComputeSKI_VsLegacy_Different(t *testing.T) {
 	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	modern, _ := ComputeSKID(&key.PublicKey)
-	legacy, _ := ComputeSKIDLegacy(&key.PublicKey)
+	modern, _ := ComputeSKI(&key.PublicKey)
+	legacy, _ := ComputeSKILegacy(&key.PublicKey)
 	if string(modern) == string(legacy) {
 		t.Error("RFC 7093 M1 and legacy SHA-1 should produce different results")
 	}
 }
 
-func TestComputeSKID_Deterministic(t *testing.T) {
+func TestComputeSKI_Deterministic(t *testing.T) {
 	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	s1, _ := ComputeSKID(&key.PublicKey)
-	s2, _ := ComputeSKID(&key.PublicKey)
+	s1, _ := ComputeSKI(&key.PublicKey)
+	s2, _ := ComputeSKI(&key.PublicKey)
 	if string(s1) != string(s2) {
 		t.Error("ComputeSKID should be deterministic")
 	}

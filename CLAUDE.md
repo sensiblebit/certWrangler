@@ -18,7 +18,7 @@ internal/                                           # Business logic (not export
 
 ### Root package (`certkit`)
 Stateless utility functions. No database, no file I/O. This is the public library API.
-- `certkit.go` — PEM parsing, key generation, fingerprints, SKID computation
+- `certkit.go` — PEM parsing, key generation, fingerprints, SKI computation
 - `bundle.go` — Certificate chain resolution via AIA, trust store verification
 - `csr.go` — CSR generation from certs, templates, or existing CSRs
 - `pkcs.go` — PKCS#12 and PKCS#7 encode/decode
@@ -43,8 +43,8 @@ Thin CLI layer. Each file is one Cobra command. Flag variables are package-level
 
 ## Key Design Decisions
 
-- **SKID computation uses RFC 7093 Method 1** (SHA-256 truncated to 160 bits), not the legacy SHA-1 method. `ComputeSKIDLegacy()` exists only for cross-matching with older certificates.
-- **AKI resolution** happens post-ingestion (`db.ResolveAKIs()`): builds a multi-hash lookup (RFC 7093 + legacy SHA-1) from all CA certs, then updates non-root cert AKIs to the computed SKID.
+- **SKI computation uses RFC 7093 Method 1** (SHA-256 truncated to 160 bits), not the legacy SHA-1 method. `ComputeSKILegacy()` exists only for cross-matching with older certificates.
+- **AKI resolution** happens post-ingestion (`db.ResolveAKIs()`): builds a multi-hash lookup (RFC 7093 + legacy SHA-1) from all CA certs, then updates non-root cert AKIs to the computed SKI.
 - **Bundle matching** is exact CN string comparison, not glob. `*.example.com` in config matches a cert whose CN is literally `*.example.com`.
 - **Expired certificates are skipped** during ingestion (not stored in DB).
 - **`x509.IsEncryptedPEMBlock` / `x509.DecryptPEMBlock`** are deprecated but intentionally used for legacy encrypted PEM support. Suppressed with `//nolint:staticcheck`.

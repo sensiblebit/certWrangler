@@ -32,15 +32,15 @@ func (db *DB) GetAllKeys() ([]KeyRecord, error) {
 	return keys, nil
 }
 
-// GetCertBySKID returns the certificate record matching the given subject key identifier.
-func (db *DB) GetCertBySKID(skid string) (*CertificateRecord, error) {
+// GetCertBySKI returns the certificate record matching the given subject key identifier.
+func (db *DB) GetCertBySKI(ski string) (*CertificateRecord, error) {
 	var cert CertificateRecord
-	err := db.Get(&cert, "SELECT * FROM certificates WHERE subject_key_identifier = ?", skid)
+	err := db.Get(&cert, "SELECT * FROM certificates WHERE subject_key_identifier = ?", ski)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("getting certificate by SKID: %w", err)
+		return nil, fmt.Errorf("getting certificate by SKI: %w", err)
 	}
 	return &cert, nil
 }
@@ -143,9 +143,9 @@ func (db *DB) InsertCertificate(cert CertificateRecord) error {
 }
 
 // GetKey returns the key record matching the given subject key identifier.
-func (db *DB) GetKey(skid string) (*KeyRecord, error) {
+func (db *DB) GetKey(ski string) (*KeyRecord, error) {
 	var key KeyRecord
-	err := db.Get(&key, "SELECT * FROM keys WHERE subject_key_identifier = ?", skid)
+	err := db.Get(&key, "SELECT * FROM keys WHERE subject_key_identifier = ?", ski)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -200,13 +200,13 @@ func (db *DB) ResolveAKIs() error {
 		return fmt.Errorf("selecting issuer certificates: %w", err)
 	}
 
-	// Build lookup: various SKID hex values → issuer's computed RFC 7093 M1 SKID
-	skidLookup := make(map[string]string) // akiHex → issuer's computed SKID
+	// Build lookup: various SKI hex values → issuer's computed RFC 7093 M1 SKI
+	skiLookup := make(map[string]string) // akiHex → issuer's computed SKI
 	for _, issuer := range issuers {
-		// The computed RFC 7093 M1 SKID is already stored
-		skidLookup[issuer.SubjectKeyIdentifier] = issuer.SubjectKeyIdentifier
+		// The computed RFC 7093 M1 SKI is already stored
+		skiLookup[issuer.SubjectKeyIdentifier] = issuer.SubjectKeyIdentifier
 
-		// Parse PEM to compute legacy SHA-1 SKID for cross-matching
+		// Parse PEM to compute legacy SHA-1 SKI for cross-matching
 		block, _ := pem.Decode([]byte(issuer.PEM))
 		if block == nil {
 			continue
@@ -216,11 +216,11 @@ func (db *DB) ResolveAKIs() error {
 			continue
 		}
 
-		legacySKID, err := certkit.ComputeSKIDLegacy(cert.PublicKey)
+		legacySKI, err := certkit.ComputeSKILegacy(cert.PublicKey)
 		if err == nil {
-			legacyHex := hex.EncodeToString(legacySKID)
-			if _, exists := skidLookup[legacyHex]; !exists {
-				skidLookup[legacyHex] = issuer.SubjectKeyIdentifier
+			legacyHex := hex.EncodeToString(legacySKI)
+			if _, exists := skiLookup[legacyHex]; !exists {
+				skiLookup[legacyHex] = issuer.SubjectKeyIdentifier
 			}
 		}
 	}
@@ -233,21 +233,21 @@ func (db *DB) ResolveAKIs() error {
 	}
 
 	for _, cert := range certs {
-		computedSKID, found := skidLookup[cert.AuthorityKeyIdentifier]
+		computedSKI, found := skiLookup[cert.AuthorityKeyIdentifier]
 		if !found {
 			slog.Debug("no issuer found for AKI resolution", "serial", cert.SerialNumber, "aki", cert.AuthorityKeyIdentifier)
 			continue
 		}
 
-		if cert.AuthorityKeyIdentifier != computedSKID {
+		if cert.AuthorityKeyIdentifier != computedSKI {
 			_, err = tx.Exec(
 				"UPDATE certificates SET authority_key_identifier = ? WHERE serial_number = ? AND authority_key_identifier = ?",
-				computedSKID, cert.SerialNumber, cert.AuthorityKeyIdentifier,
+				computedSKI, cert.SerialNumber, cert.AuthorityKeyIdentifier,
 			)
 			if err != nil {
 				slog.Warn("updating AKI", "serial", cert.SerialNumber, "error", err)
 			} else {
-				slog.Debug("updated AKI", "serial", cert.SerialNumber, "old_aki", cert.AuthorityKeyIdentifier, "new_aki", computedSKID)
+				slog.Debug("updated AKI", "serial", cert.SerialNumber, "old_aki", cert.AuthorityKeyIdentifier, "new_aki", computedSKI)
 			}
 		}
 	}
