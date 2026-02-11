@@ -11,6 +11,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/hex"
 	"encoding/pem"
+	"fmt"
 	"math/big"
 	"net"
 	"os"
@@ -231,36 +232,26 @@ func TestComputeSKI_DifferentKeysProduceDifferentSKIDs(t *testing.T) {
 	}
 }
 
-func TestParsePrivateKey_Unencrypted_RSA(t *testing.T) {
-	keyPEM := rsaKeyPEM(t)
-	key, err := certkit.ParsePEMPrivateKeyWithPasswords(keyPEM, nil)
-	if err != nil {
-		t.Fatalf("parsePrivateKey RSA: %v", err)
+func TestParsePrivateKey_Unencrypted(t *testing.T) {
+	tests := []struct {
+		name    string
+		pemFunc func(t *testing.T) []byte
+		wantType string
+	}{
+		{"RSA", rsaKeyPEM, "*rsa.PrivateKey"},
+		{"ECDSA", ecdsaKeyPEM, "*ecdsa.PrivateKey"},
+		{"Ed25519", ed25519KeyPEM, "ed25519.PrivateKey"},
 	}
-	if _, ok := key.(*rsa.PrivateKey); !ok {
-		t.Errorf("expected *rsa.PrivateKey, got %T", key)
-	}
-}
-
-func TestParsePrivateKey_Unencrypted_ECDSA(t *testing.T) {
-	keyPEM := ecdsaKeyPEM(t)
-	key, err := certkit.ParsePEMPrivateKeyWithPasswords(keyPEM, nil)
-	if err != nil {
-		t.Fatalf("parsePrivateKey ECDSA: %v", err)
-	}
-	if _, ok := key.(*ecdsa.PrivateKey); !ok {
-		t.Errorf("expected *ecdsa.PrivateKey, got %T", key)
-	}
-}
-
-func TestParsePrivateKey_Unencrypted_Ed25519(t *testing.T) {
-	keyPEM := ed25519KeyPEM(t)
-	key, err := certkit.ParsePEMPrivateKeyWithPasswords(keyPEM, nil)
-	if err != nil {
-		t.Fatalf("parsePrivateKey Ed25519: %v", err)
-	}
-	if _, ok := key.(ed25519.PrivateKey); !ok {
-		t.Errorf("expected ed25519.PrivateKey, got %T", key)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			key, err := certkit.ParsePEMPrivateKeyWithPasswords(tt.pemFunc(t), nil)
+			if err != nil {
+				t.Fatalf("parsePrivateKey: %v", err)
+			}
+			if got := fmt.Sprintf("%T", key); got != tt.wantType {
+				t.Errorf("got %s, want %s", got, tt.wantType)
+			}
+		})
 	}
 }
 
