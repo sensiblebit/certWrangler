@@ -19,6 +19,7 @@ var (
 	scanExport      bool
 	scanDuplicates  bool
 	scanDumpKeys    string
+	scanDumpCerts   string
 	scanMaxFileSize int64
 )
 
@@ -42,6 +43,7 @@ func init() {
 	scanCmd.Flags().BoolVarP(&scanForceExport, "force", "f", false, "Allow export of untrusted certificate bundles")
 	scanCmd.Flags().BoolVar(&scanDuplicates, "duplicates", false, "Export all certificates per bundle, not just the newest")
 	scanCmd.Flags().StringVar(&scanDumpKeys, "dump-keys", "", "Dump all discovered keys to a single PEM file")
+	scanCmd.Flags().StringVar(&scanDumpCerts, "dump-certs", "", "Dump all discovered certificates to a single PEM file")
 	scanCmd.Flags().Int64Var(&scanMaxFileSize, "max-file-size", 10*1024*1024, "Skip files larger than this size in bytes (0 to disable)")
 }
 
@@ -70,13 +72,14 @@ func runScan(cmd *cobra.Command, args []string) error {
 	}
 
 	cfg := &internal.Config{
-		InputPath:     inputPath,
-		Passwords:     passwords,
-		DB:            db,
-		ExportBundles: scanExport,
-		ForceExport:   scanForceExport,
-		BundleConfigs: bundleConfigs,
-		OutDir:        scanOutDir,
+		InputPath:      inputPath,
+		Passwords:      passwords,
+		DB:             db,
+		ExportBundles:  scanExport,
+		ForceExport:    scanForceExport,
+		BundleConfigs:  bundleConfigs,
+		OutDir:         scanOutDir,
+		IncludeExpired: scanDumpCerts != "",
 	}
 
 	// Ingest
@@ -128,6 +131,25 @@ func runScan(cmd *cobra.Command, args []string) error {
 			fmt.Fprintf(os.Stderr, "Wrote %d key(s) to %s\n", len(keys), scanDumpKeys)
 		} else {
 			fmt.Fprintln(os.Stderr, "No keys found to dump")
+		}
+	}
+
+	if scanDumpCerts != "" {
+		certs, err := db.GetAllCerts()
+		if err != nil {
+			return fmt.Errorf("getting certificates: %w", err)
+		}
+		if len(certs) > 0 {
+			var data []byte
+			for _, c := range certs {
+				data = append(data, c.PEM...)
+			}
+			if err := os.WriteFile(scanDumpCerts, data, 0644); err != nil {
+				return fmt.Errorf("writing certificates to %s: %w", scanDumpCerts, err)
+			}
+			fmt.Fprintf(os.Stderr, "Wrote %d certificate(s) to %s\n", len(certs), scanDumpCerts)
+		} else {
+			fmt.Fprintln(os.Stderr, "No certificates found to dump")
 		}
 	}
 

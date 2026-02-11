@@ -83,7 +83,7 @@ func processPEMCertificates(data []byte, path string, cfg *Config) bool {
 			sansJSON = []byte("[]")
 		}
 
-		if time.Now().After(cert.NotAfter) {
+		if !cfg.IncludeExpired && time.Now().After(cert.NotAfter) {
 			slog.Debug("skipping expired certificate",
 				"cn", cert.Subject.CommonName,
 				"serial", cert.SerialNumber.String(),

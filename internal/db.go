@@ -32,6 +32,16 @@ func (db *DB) GetAllKeys() ([]KeyRecord, error) {
 	return keys, nil
 }
 
+// GetAllCerts returns all certificate records from the database.
+func (db *DB) GetAllCerts() ([]CertificateRecord, error) {
+	var certs []CertificateRecord
+	err := db.Select(&certs, "SELECT * FROM certificates")
+	if err != nil {
+		return nil, fmt.Errorf("getting all certificates: %w", err)
+	}
+	return certs, nil
+}
+
 // GetCertBySKI returns the certificate record matching the given subject key identifier.
 func (db *DB) GetCertBySKI(ski string) (*CertificateRecord, error) {
 	var cert CertificateRecord

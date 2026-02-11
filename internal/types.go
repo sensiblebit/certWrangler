@@ -9,13 +9,14 @@ import (
 
 // Config holds the runtime application configuration
 type Config struct {
-	InputPath     string
-	Passwords     []string
-	DB            *DB
-	ExportBundles bool
-	ForceExport   bool
-	BundleConfigs []BundleConfig
-	OutDir        string
+	InputPath      string
+	Passwords      []string
+	DB             *DB
+	ExportBundles  bool
+	ForceExport    bool
+	BundleConfigs  []BundleConfig
+	OutDir         string
+	IncludeExpired bool
 }
 
 // CertificateRecord encodes a certificate and its metadata
