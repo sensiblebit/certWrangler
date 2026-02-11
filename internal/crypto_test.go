@@ -20,17 +20,21 @@ import (
 	"github.com/sensiblebit/certkit"
 )
 
-func TestIsPEM_True(t *testing.T) {
-	data := []byte("-----BEGIN CERTIFICATE-----\nfoo\n-----END CERTIFICATE-----")
-	if !certkit.IsPEM(data) {
-		t.Error("expected isPEM to return true for PEM data")
+func TestIsPEM(t *testing.T) {
+	tests := []struct {
+		name string
+		data []byte
+		want bool
+	}{
+		{"PEM data", []byte("-----BEGIN CERTIFICATE-----\nfoo\n-----END CERTIFICATE-----"), true},
+		{"DER data", []byte{0x30, 0x82, 0x01, 0x00}, false},
 	}
-}
-
-func TestIsPEM_False(t *testing.T) {
-	data := []byte{0x30, 0x82, 0x01, 0x00} // DER-like bytes
-	if certkit.IsPEM(data) {
-		t.Error("expected isPEM to return false for DER data")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := certkit.IsPEM(tt.data); got != tt.want {
+				t.Errorf("IsPEM() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
 
