@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -106,11 +107,7 @@ func inspectDERData(data []byte, passwords []string) []InspectResult {
 }
 
 func inspectCert(cert *x509.Certificate) InspectResult {
-	var sans []string
-	sans = append(sans, cert.DNSNames...)
-	for _, ip := range cert.IPAddresses {
-		sans = append(sans, ip.String())
-	}
+	sans := slices.Concat(cert.DNSNames, formatIPAddresses(cert.IPAddresses))
 	for _, uri := range cert.URIs {
 		sans = append(sans, uri.String())
 	}
