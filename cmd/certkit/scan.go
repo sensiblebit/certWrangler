@@ -29,7 +29,7 @@ var scanCmd = &cobra.Command{
   cat cert.pem | certkit scan -
   certkit scan /path/to/certs --export -c bundles.yaml -o ./out`,
 	Args: cobra.ExactArgs(1),
-	RunE:  runScan,
+	RunE: runScan,
 }
 
 func init() {

@@ -3,10 +3,10 @@ package certkit
 import (
 	"crypto"
 	"crypto/ecdsa"
-	"errors"
 	"crypto/ed25519"
 	"crypto/rsa"
 	"crypto/x509"
+	"errors"
 	"fmt"
 
 	"github.com/smallstep/pkcs7"

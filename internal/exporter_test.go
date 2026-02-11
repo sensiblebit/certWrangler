@@ -15,8 +15,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sensiblebit/certkit"
 	"github.com/jmoiron/sqlx/types"
+	"github.com/sensiblebit/certkit"
 	"gopkg.in/yaml.v3"
 )
 

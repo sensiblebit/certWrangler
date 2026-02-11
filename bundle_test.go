@@ -88,12 +88,12 @@ func TestBundle_mozillaRoots(t *testing.T) {
 	}
 
 	result, err := Bundle(context.Background(), leaf, BundleOptions{
-		FetchAIA:     true,
-		AIATimeout: 5 * time.Second,
-		AIAMaxDepth:  5,
-		TrustStore:   "mozilla",
-		Verify:       true,
-		IncludeRoot:  true,
+		FetchAIA:    true,
+		AIATimeout:  5 * time.Second,
+		AIAMaxDepth: 5,
+		TrustStore:  "mozilla",
+		Verify:      true,
+		IncludeRoot: true,
 	})
 	if err != nil {
 		t.Fatalf("Mozilla trust store verification failed: %v", err)

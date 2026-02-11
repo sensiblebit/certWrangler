@@ -13,14 +13,14 @@ import (
 
 // VerifyResult holds the results of certificate verification checks.
 type VerifyResult struct {
-	KeyMatch    *bool   `json:"key_match,omitempty"`
-	KeyMatchErr string  `json:"key_match_error,omitempty"`
-	ChainValid  *bool   `json:"chain_valid,omitempty"`
-	ChainErr    string  `json:"chain_error,omitempty"`
-	Expiry      *bool   `json:"expires_within,omitempty"`
-	ExpiryInfo  string  `json:"expiry_info,omitempty"`
-	Subject     string  `json:"subject"`
-	NotAfter    string  `json:"not_after"`
+	KeyMatch    *bool    `json:"key_match,omitempty"`
+	KeyMatchErr string   `json:"key_match_error,omitempty"`
+	ChainValid  *bool    `json:"chain_valid,omitempty"`
+	ChainErr    string   `json:"chain_error,omitempty"`
+	Expiry      *bool    `json:"expires_within,omitempty"`
+	ExpiryInfo  string   `json:"expiry_info,omitempty"`
+	Subject     string   `json:"subject"`
+	NotAfter    string   `json:"not_after"`
 	Errors      []string `json:"errors,omitempty"`
 }
 

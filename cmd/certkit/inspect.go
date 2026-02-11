@@ -17,7 +17,7 @@ var inspectCmd = &cobra.Command{
   certkit inspect key.pem
   certkit inspect cert.pem --format json`,
 	Args: cobra.ExactArgs(1),
-	RunE:  runInspect,
+	RunE: runInspect,
 }
 
 func init() {

@@ -24,7 +24,7 @@ var keygenCmd = &cobra.Command{
   certkit keygen --algorithm rsa --bits 2048 -o ./keys
   certkit keygen --cn example.com --sans example.com,www.example.com`,
 	Args: cobra.NoArgs,
-	RunE:  runKeygen,
+	RunE: runKeygen,
 }
 
 func init() {

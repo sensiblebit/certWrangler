@@ -26,7 +26,7 @@ type BundleConfig struct {
 
 // BundlesYAML represents the full YAML structure with defaults and bundles
 type BundlesYAML struct {
-	DefaultSubject *SubjectConfig  `yaml:"defaultSubject,omitempty"`
+	DefaultSubject *SubjectConfig `yaml:"defaultSubject,omitempty"`
 	Bundles        []BundleConfig `yaml:"bundles"`
 }
 
@@ -36,7 +36,7 @@ func LoadBundleConfigs(path string) ([]BundleConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Try to unmarshal as new format with defaults
 	var yamlConfig BundlesYAML
 	if err := yaml.Unmarshal(data, &yamlConfig); err == nil && len(yamlConfig.Bundles) > 0 {
@@ -50,7 +50,7 @@ func LoadBundleConfigs(path string) ([]BundleConfig, error) {
 		}
 		return yamlConfig.Bundles, nil
 	}
-	
+
 	// Fall back to old format (array of bundles)
 	var configs []BundleConfig
 	if err := yaml.Unmarshal(data, &configs); err != nil {

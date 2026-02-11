@@ -27,7 +27,7 @@ var verifyCmd = &cobra.Command{
   certkit verify cert.pem --expiry 30d
   certkit verify cert.pem --chain --key key.pem --expiry 90d`,
 	Args: cobra.ExactArgs(1),
-	RunE:  runVerify,
+	RunE: runVerify,
 }
 
 func init() {
