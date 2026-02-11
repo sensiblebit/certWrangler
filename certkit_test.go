@@ -731,44 +731,33 @@ func TestParsePEMCertificateRequest_invalidDER(t *testing.T) {
 	}
 }
 
-func TestMarshalPrivateKeyToPEM_ECDSA(t *testing.T) {
-	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	pemStr, err := MarshalPrivateKeyToPEM(key)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(pemStr, "PRIVATE KEY") {
-		t.Error("expected PEM output to contain PRIVATE KEY")
-	}
+func TestMarshalPrivateKeyToPEM(t *testing.T) {
+	ecKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	rsaKey, _ := rsa.GenerateKey(rand.Reader, 2048)
+	_, edKey, _ := ed25519.GenerateKey(rand.Reader)
 
-	parsed, err := ParsePEMPrivateKey([]byte(pemStr))
-	if err != nil {
-		t.Fatal(err)
+	tests := []struct {
+		name string
+		key  any
+	}{
+		{"ECDSA", ecKey},
+		{"RSA", rsaKey},
+		{"Ed25519", edKey},
 	}
-	if _, ok := parsed.(*ecdsa.PrivateKey); !ok {
-		t.Errorf("expected *ecdsa.PrivateKey, got %T", parsed)
-	}
-}
-
-func TestMarshalPrivateKeyToPEM_RSA(t *testing.T) {
-	key, _ := rsa.GenerateKey(rand.Reader, 2048)
-	pemStr, err := MarshalPrivateKeyToPEM(key)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(pemStr, "PRIVATE KEY") {
-		t.Error("expected PEM output to contain PRIVATE KEY")
-	}
-}
-
-func TestMarshalPrivateKeyToPEM_Ed25519(t *testing.T) {
-	_, key, _ := ed25519.GenerateKey(rand.Reader)
-	pemStr, err := MarshalPrivateKeyToPEM(key)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(pemStr, "PRIVATE KEY") {
-		t.Error("expected PEM output to contain PRIVATE KEY")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pemStr, err := MarshalPrivateKeyToPEM(tt.key)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(pemStr, "PRIVATE KEY") {
+				t.Error("expected PEM output to contain PRIVATE KEY")
+			}
+			// Round-trip: parse back
+			if _, err := ParsePEMPrivateKey([]byte(pemStr)); err != nil {
+				t.Fatalf("round-trip parse failed: %v", err)
+			}
+		})
 	}
 }
 
@@ -818,7 +807,7 @@ func TestComputeSKI_Deterministic(t *testing.T) {
 	s1, _ := ComputeSKI(&key.PublicKey)
 	s2, _ := ComputeSKI(&key.PublicKey)
 	if string(s1) != string(s2) {
-		t.Error("ComputeSKID should be deterministic")
+		t.Error("ComputeSKI should be deterministic")
 	}
 }
 
