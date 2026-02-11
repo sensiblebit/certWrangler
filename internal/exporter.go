@@ -180,10 +180,9 @@ func writeBundleFiles(outDir, bundleFolder string, cert *CertificateRecord, key 
 // generateJSON creates a JSON representation of the certificate bundle.
 func generateJSON(bundle *certkit.BundleResult) ([]byte, error) {
 	// Build chain PEM: leaf + intermediates
-	var chainPEM []byte
-	chainPEM = append(chainPEM, []byte(certkit.CertToPEM(bundle.Leaf))...)
+	chainPEM := []byte(certkit.CertToPEM(bundle.Leaf))
 	for _, c := range bundle.Intermediates {
-		chainPEM = append(chainPEM, []byte(certkit.CertToPEM(c))...)
+		chainPEM = slices.Concat(chainPEM, []byte(certkit.CertToPEM(c)))
 	}
 
 	authorityKeyID := ""
