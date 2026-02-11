@@ -94,7 +94,7 @@ func (db *DB) initSchema() error {
 	}
 
 	_, err = db.Exec(`
-		CREATE INDEX IF NOT EXISTS idx_certificates_skid ON certificates (subject_key_identifier);
+		CREATE INDEX IF NOT EXISTS idx_certificates_ski ON certificates (subject_key_identifier);
 	`)
 	if err != nil {
 		return fmt.Errorf("creating subject key identifier index on certificates table: %w", err)
