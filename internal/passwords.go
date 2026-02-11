@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/sensiblebit/certkit"
@@ -29,21 +30,15 @@ func LoadPasswordsFromFile(filename string) ([]string, error) {
 
 // ProcessPasswords handles all password loading logic
 func ProcessPasswords(passwordList []string, passwordFile string) ([]string, error) {
-	var passwords []string
+	// Combine defaults, CLI list, and file passwords
+	passwords := slices.Concat(certkit.DefaultPasswords(), passwordList)
 
-	// Add default passwords
-	passwords = append(passwords, certkit.DefaultPasswords()...)
-
-	// Add passwords from command line list if provided
-	passwords = append(passwords, passwordList...)
-
-	// Add passwords from file if provided
 	if passwordFile != "" {
 		filePasswords, err := LoadPasswordsFromFile(passwordFile)
 		if err != nil {
 			return nil, fmt.Errorf("loading passwords from file: %w", err)
 		}
-		passwords = append(passwords, filePasswords...)
+		passwords = slices.Concat(passwords, filePasswords)
 	}
 
 	// Remove duplicates while preserving order
