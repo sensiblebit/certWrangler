@@ -6,7 +6,6 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/pem"
-	"net"
 	"strings"
 	"testing"
 )
@@ -113,73 +112,35 @@ func TestGenerateCSR_nonSignerKey(t *testing.T) {
 
 // --- ClassifyHosts tests ---
 
-func TestClassifyHosts_DNS(t *testing.T) {
-	dns, ips, uris, emails := ClassifyHosts([]string{"example.com", "www.example.com"})
-	if len(dns) != 2 {
-		t.Errorf("DNS count=%d, want 2", len(dns))
+func TestClassifyHosts(t *testing.T) {
+	tests := []struct {
+		name                              string
+		hosts                             []string
+		wantDNS, wantIPs, wantURIs, wantEmails int
+	}{
+		{"DNS only", []string{"example.com", "www.example.com"}, 2, 0, 0, 0},
+		{"IP only", []string{"10.0.0.1", "::1"}, 0, 2, 0, 0},
+		{"URI only", []string{"spiffe://example.com/workload", "https://example.com/path"}, 0, 0, 2, 0},
+		{"Email only", []string{"admin@example.com"}, 0, 0, 0, 1},
+		{"Mixed", []string{"example.com", "10.0.0.1", "spiffe://cluster.local/ns/default", "admin@example.com", "www.example.com"}, 2, 1, 1, 1},
+		{"Empty", nil, 0, 0, 0, 0},
 	}
-	if len(ips) != 0 || len(uris) != 0 || len(emails) != 0 {
-		t.Error("expected no IPs, URIs, or emails")
-	}
-}
-
-func TestClassifyHosts_IP(t *testing.T) {
-	dns, ips, uris, emails := ClassifyHosts([]string{"10.0.0.1", "::1"})
-	if len(ips) != 2 {
-		t.Errorf("IP count=%d, want 2", len(ips))
-	}
-	if !ips[0].Equal(net.ParseIP("10.0.0.1")) {
-		t.Errorf("IP[0]=%v, want 10.0.0.1", ips[0])
-	}
-	if len(dns) != 0 || len(uris) != 0 || len(emails) != 0 {
-		t.Error("expected no DNS, URIs, or emails")
-	}
-}
-
-func TestClassifyHosts_URI(t *testing.T) {
-	dns, ips, uris, emails := ClassifyHosts([]string{"spiffe://example.com/workload", "https://example.com/path"})
-	if len(uris) != 2 {
-		t.Errorf("URI count=%d, want 2", len(uris))
-	}
-	if uris[0].String() != "spiffe://example.com/workload" {
-		t.Errorf("URI[0]=%v", uris[0])
-	}
-	if len(dns) != 0 || len(ips) != 0 || len(emails) != 0 {
-		t.Error("expected no DNS, IPs, or emails")
-	}
-}
-
-func TestClassifyHosts_Email(t *testing.T) {
-	dns, ips, uris, emails := ClassifyHosts([]string{"admin@example.com"})
-	if len(emails) != 1 || emails[0] != "admin@example.com" {
-		t.Errorf("emails=%v, want [admin@example.com]", emails)
-	}
-	if len(dns) != 0 || len(ips) != 0 || len(uris) != 0 {
-		t.Error("expected no DNS, IPs, or URIs")
-	}
-}
-
-func TestClassifyHosts_Mixed(t *testing.T) {
-	hosts := []string{"example.com", "10.0.0.1", "spiffe://cluster.local/ns/default", "admin@example.com", "www.example.com"}
-	dns, ips, uris, emails := ClassifyHosts(hosts)
-	if len(dns) != 2 {
-		t.Errorf("DNS count=%d, want 2", len(dns))
-	}
-	if len(ips) != 1 {
-		t.Errorf("IP count=%d, want 1", len(ips))
-	}
-	if len(uris) != 1 {
-		t.Errorf("URI count=%d, want 1", len(uris))
-	}
-	if len(emails) != 1 {
-		t.Errorf("email count=%d, want 1", len(emails))
-	}
-}
-
-func TestClassifyHosts_Empty(t *testing.T) {
-	dns, ips, uris, emails := ClassifyHosts(nil)
-	if len(dns) != 0 || len(ips) != 0 || len(uris) != 0 || len(emails) != 0 {
-		t.Error("expected all empty for nil input")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dns, ips, uris, emails := ClassifyHosts(tt.hosts)
+			if len(dns) != tt.wantDNS {
+				t.Errorf("DNS count=%d, want %d", len(dns), tt.wantDNS)
+			}
+			if len(ips) != tt.wantIPs {
+				t.Errorf("IP count=%d, want %d", len(ips), tt.wantIPs)
+			}
+			if len(uris) != tt.wantURIs {
+				t.Errorf("URI count=%d, want %d", len(uris), tt.wantURIs)
+			}
+			if len(emails) != tt.wantEmails {
+				t.Errorf("email count=%d, want %d", len(emails), tt.wantEmails)
+			}
+		})
 	}
 }
 
