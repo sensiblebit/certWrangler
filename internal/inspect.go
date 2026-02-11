@@ -135,16 +135,13 @@ func inspectCert(cert *x509.Certificate) InspectResult {
 }
 
 func inspectCSR(csr *x509.CertificateRequest) InspectResult {
-	var dnsNames []string
-	dnsNames = append(dnsNames, csr.DNSNames...)
-
 	return InspectResult{
 		Type:        "csr",
 		CSRSubject:  csr.Subject.String(),
 		KeyAlgo:     certkit.PublicKeyAlgorithmName(csr.PublicKey),
 		KeySize:     publicKeySize(csr.PublicKey),
 		SigAlg:      csr.SignatureAlgorithm.String(),
-		CSRDNSNames: dnsNames,
+		CSRDNSNames: csr.DNSNames,
 	}
 }
 
