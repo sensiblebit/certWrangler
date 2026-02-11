@@ -9,8 +9,8 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"slices"
 	"net/url"
+	"slices"
 	"time"
 
 	"github.com/breml/rootcerts/embedded"

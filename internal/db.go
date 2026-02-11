@@ -13,7 +13,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/jmoiron/sqlx/types"
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 	"github.com/sensiblebit/certkit"
 )
 
@@ -64,7 +64,7 @@ func NewDB(dbPath string) (*DB, error) {
 	}
 
 	// Open database connection
-	db, err := sqlx.Open("sqlite3", connectionString)
+	db, err := sqlx.Open("sqlite", connectionString)
 	if err != nil {
 		return nil, fmt.Errorf("opening database: %w", err)
 	}
