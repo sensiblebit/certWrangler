@@ -12,6 +12,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/pem"
+	"fmt"
 	"math/big"
 	"regexp"
 	"strings"
@@ -841,43 +842,38 @@ func TestGetCertificateType(t *testing.T) {
 	}
 }
 
-func TestGetPublicKey_RSA(t *testing.T) {
-	key, _ := rsa.GenerateKey(rand.Reader, 2048)
-	pub, err := GetPublicKey(key)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, ok := pub.(*rsa.PublicKey); !ok {
-		t.Errorf("expected *rsa.PublicKey, got %T", pub)
-	}
-}
+func TestGetPublicKey(t *testing.T) {
+	rsaKey, _ := rsa.GenerateKey(rand.Reader, 2048)
+	ecKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	_, edPriv, _ := ed25519.GenerateKey(rand.Reader)
 
-func TestGetPublicKey_ECDSA(t *testing.T) {
-	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	pub, err := GetPublicKey(key)
-	if err != nil {
-		t.Fatal(err)
+	tests := []struct {
+		name    string
+		priv    any
+		wantTyp string
+		wantErr bool
+	}{
+		{"RSA", rsaKey, "*rsa.PublicKey", false},
+		{"ECDSA", ecKey, "*ecdsa.PublicKey", false},
+		{"Ed25519", edPriv, "ed25519.PublicKey", false},
+		{"unsupported", struct{}{}, "", true},
 	}
-	if _, ok := pub.(*ecdsa.PublicKey); !ok {
-		t.Errorf("expected *ecdsa.PublicKey, got %T", pub)
-	}
-}
-
-func TestGetPublicKey_Ed25519(t *testing.T) {
-	_, priv, _ := ed25519.GenerateKey(rand.Reader)
-	pub, err := GetPublicKey(priv)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, ok := pub.(ed25519.PublicKey); !ok {
-		t.Errorf("expected ed25519.PublicKey, got %T", pub)
-	}
-}
-
-func TestGetPublicKey_UnsupportedType(t *testing.T) {
-	_, err := GetPublicKey(struct{}{})
-	if err == nil {
-		t.Error("expected error for unsupported type")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pub, err := GetPublicKey(tt.priv)
+			if tt.wantErr {
+				if err == nil {
+					t.Error("expected error")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := fmt.Sprintf("%T", pub); got != tt.wantTyp {
+				t.Errorf("GetPublicKey() type = %s, want %s", got, tt.wantTyp)
+			}
+		})
 	}
 }
 
