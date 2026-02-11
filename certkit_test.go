@@ -1,6 +1,7 @@
 package certkit
 
 import (
+	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
@@ -1176,81 +1177,41 @@ func TestDERPrivateKey_Ed25519_RoundTrip(t *testing.T) {
 	}
 }
 
-func TestPEMPrivateKey_EC_RoundTrip(t *testing.T) {
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		t.Fatal(err)
-	}
+func TestPEMPrivateKey_RoundTrip(t *testing.T) {
+	rsaKey, _ := rsa.GenerateKey(rand.Reader, 2048)
+	ecKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	_, edKey, _ := ed25519.GenerateKey(rand.Reader)
 
-	// Marshal to PEM via certkit
-	pemStr, err := MarshalPrivateKeyToPEM(key)
-	if err != nil {
-		t.Fatal(err)
+	tests := []struct {
+		name string
+		key  any
+	}{
+		{"RSA", rsaKey},
+		{"ECDSA", ecKey},
+		{"Ed25519", edKey},
 	}
-
-	// Parse back
-	parsed, err := ParsePEMPrivateKey([]byte(pemStr))
-	if err != nil {
-		t.Fatal(err)
-	}
-	ecParsed, ok := parsed.(*ecdsa.PrivateKey)
-	if !ok {
-		t.Fatalf("expected *ecdsa.PrivateKey, got %T", parsed)
-	}
-	if !key.Equal(ecParsed) {
-		t.Error("EC PEM round-trip key mismatch")
-	}
-}
-
-func TestPEMPrivateKey_Ed25519_RoundTrip(t *testing.T) {
-	_, priv, err := ed25519.GenerateKey(rand.Reader)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Marshal to PEM via certkit
-	pemStr, err := MarshalPrivateKeyToPEM(priv)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Parse back
-	parsed, err := ParsePEMPrivateKey([]byte(pemStr))
-	if err != nil {
-		t.Fatal(err)
-	}
-	edParsed, ok := parsed.(ed25519.PrivateKey)
-	if !ok {
-		t.Fatalf("expected ed25519.PrivateKey, got %T", parsed)
-	}
-	if !priv.Equal(edParsed) {
-		t.Error("Ed25519 PEM round-trip key mismatch")
-	}
-}
-
-func TestPEMPrivateKey_RSA_RoundTrip(t *testing.T) {
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Marshal to PEM via certkit
-	pemStr, err := MarshalPrivateKeyToPEM(key)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Parse back
-	parsed, err := ParsePEMPrivateKey([]byte(pemStr))
-	if err != nil {
-		t.Fatal(err)
-	}
-	rsaParsed, ok := parsed.(*rsa.PrivateKey)
-	if !ok {
-		t.Fatalf("expected *rsa.PrivateKey, got %T", parsed)
-	}
-	if !key.Equal(rsaParsed) {
-		t.Error("RSA PEM round-trip key mismatch")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pemStr, err := MarshalPrivateKeyToPEM(tt.key)
+			if err != nil {
+				t.Fatal(err)
+			}
+			parsed, err := ParsePEMPrivateKey([]byte(pemStr))
+			if err != nil {
+				t.Fatal(err)
+			}
+			// Use the same Equal-via-interface pattern as KeyMatchesCert.
+			type equalKey interface {
+				Equal(x crypto.PrivateKey) bool
+			}
+			orig, ok := tt.key.(equalKey)
+			if !ok {
+				t.Fatalf("original key %T does not implement Equal", tt.key)
+			}
+			if !orig.Equal(parsed) {
+				t.Errorf("%s PEM round-trip key mismatch", tt.name)
+			}
+		})
 	}
 }
 
