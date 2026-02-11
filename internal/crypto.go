@@ -13,6 +13,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -76,11 +77,7 @@ func processPEMCertificates(data []byte, path string, cfg *Config) bool {
 		}
 
 		// Format SANs
-		var sans []string
-		sans = append(sans, cert.DNSNames...)
-		for _, ip := range cert.IPAddresses {
-			sans = append(sans, ip.String())
-		}
+		sans := slices.Concat(cert.DNSNames, formatIPAddresses(cert.IPAddresses))
 		sansJSON, err := json.Marshal(sans)
 		if err != nil {
 			sansJSON = []byte("[]")
