@@ -811,35 +811,33 @@ func TestComputeSKI_Deterministic(t *testing.T) {
 	}
 }
 
-func TestGetCertificateType_Root(t *testing.T) {
+func TestGetCertificateType(t *testing.T) {
 	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	tmpl := &x509.Certificate{
-		SerialNumber:          big.NewInt(1),
-		Subject:               pkix.Name{CommonName: "Root CA"},
-		NotBefore:             time.Now().Add(-1 * time.Hour),
-		NotAfter:              time.Now().Add(24 * time.Hour),
-		IsCA:                  true,
-		BasicConstraintsValid: true,
-	}
-	certDER, _ := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
-	cert, _ := x509.ParseCertificate(certDER)
-	if got := GetCertificateType(cert); got != "root" {
-		t.Errorf("expected root, got %s", got)
-	}
-}
 
-func TestGetCertificateType_Leaf(t *testing.T) {
-	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	tmpl := &x509.Certificate{
-		SerialNumber: big.NewInt(1),
-		Subject:      pkix.Name{CommonName: "leaf"},
-		NotBefore:    time.Now().Add(-1 * time.Hour),
-		NotAfter:     time.Now().Add(24 * time.Hour),
+	tests := []struct {
+		name     string
+		isCA     bool
+		expected string
+	}{
+		{"root (self-signed CA)", true, "root"},
+		{"leaf (non-CA)", false, "leaf"},
 	}
-	certDER, _ := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
-	cert, _ := x509.ParseCertificate(certDER)
-	if got := GetCertificateType(cert); got != "leaf" {
-		t.Errorf("expected leaf, got %s", got)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpl := &x509.Certificate{
+				SerialNumber:          big.NewInt(1),
+				Subject:               pkix.Name{CommonName: tt.name},
+				NotBefore:             time.Now().Add(-1 * time.Hour),
+				NotAfter:              time.Now().Add(24 * time.Hour),
+				IsCA:                  tt.isCA,
+				BasicConstraintsValid: tt.isCA,
+			}
+			certDER, _ := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+			cert, _ := x509.ParseCertificate(certDER)
+			if got := GetCertificateType(cert); got != tt.expected {
+				t.Errorf("GetCertificateType() = %q, want %q", got, tt.expected)
+			}
+		})
 	}
 }
 
