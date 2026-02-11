@@ -516,51 +516,33 @@ func TestCheckSHA1Signatures_NoWarning(t *testing.T) {
 	}
 }
 
-func TestCheckExpiryWarnings_Expired(t *testing.T) {
-	certs := []*x509.Certificate{
-		{
-			Subject:  pkix.Name{CommonName: "expired-cert"},
-			NotAfter: time.Now().Add(-24 * time.Hour),
-		},
+func TestCheckExpiryWarnings(t *testing.T) {
+	tests := []struct {
+		name         string
+		notAfter     time.Duration
+		wantCount    int
+		wantContains string
+	}{
+		{"expired", -24 * time.Hour, 1, "has expired"},
+		{"expiring soon", 10 * 24 * time.Hour, 1, "expires within 30 days"},
+		{"far future", 365 * 24 * time.Hour, 0, ""},
 	}
-
-	warnings := checkExpiryWarnings(certs)
-	if len(warnings) != 1 {
-		t.Fatalf("expected 1 warning, got %d", len(warnings))
-	}
-	if !strings.Contains(warnings[0], "has expired") {
-		t.Errorf("warning should mention expired: %s", warnings[0])
-	}
-}
-
-func TestCheckExpiryWarnings_ExpiringSoon(t *testing.T) {
-	certs := []*x509.Certificate{
-		{
-			Subject:  pkix.Name{CommonName: "expiring-cert"},
-			NotAfter: time.Now().Add(10 * 24 * time.Hour),
-		},
-	}
-
-	warnings := checkExpiryWarnings(certs)
-	if len(warnings) != 1 {
-		t.Fatalf("expected 1 warning, got %d", len(warnings))
-	}
-	if !strings.Contains(warnings[0], "expires within 30 days") {
-		t.Errorf("warning should mention 30 days: %s", warnings[0])
-	}
-}
-
-func TestCheckExpiryWarnings_FarFuture(t *testing.T) {
-	certs := []*x509.Certificate{
-		{
-			Subject:  pkix.Name{CommonName: "far-future-cert"},
-			NotAfter: time.Now().Add(365 * 24 * time.Hour),
-		},
-	}
-
-	warnings := checkExpiryWarnings(certs)
-	if len(warnings) != 0 {
-		t.Errorf("expected no warnings for far-future cert, got %d", len(warnings))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			certs := []*x509.Certificate{
+				{
+					Subject:  pkix.Name{CommonName: "test-cert"},
+					NotAfter: time.Now().Add(tt.notAfter),
+				},
+			}
+			warnings := checkExpiryWarnings(certs)
+			if len(warnings) != tt.wantCount {
+				t.Fatalf("got %d warnings, want %d", len(warnings), tt.wantCount)
+			}
+			if tt.wantContains != "" && !strings.Contains(warnings[0], tt.wantContains) {
+				t.Errorf("warning %q should contain %q", warnings[0], tt.wantContains)
+			}
+		})
 	}
 }
 
