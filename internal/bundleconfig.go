@@ -19,8 +19,6 @@ type SubjectConfig struct {
 type BundleConfig struct {
 	CommonNames []string       `yaml:"commonNames"`
 	BundleName  string         `yaml:"bundleName"`
-	Custodian   string         `yaml:"custodian"`
-	Usage       []string       `yaml:"usage"`
 	Subject     *SubjectConfig `yaml:"subject,omitempty"`
 }
 
