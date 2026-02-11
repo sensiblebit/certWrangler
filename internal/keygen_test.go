@@ -9,33 +9,27 @@ import (
 	"github.com/sensiblebit/certkit"
 )
 
-func TestGenerateKey_ECDSA(t *testing.T) {
-	signer, err := GenerateKey("ecdsa", 0, "P-256")
-	if err != nil {
-		t.Fatal(err)
+func TestGenerateKey(t *testing.T) {
+	tests := []struct {
+		name      string
+		algorithm string
+		bits      int
+		curve     string
+	}{
+		{"ECDSA", "ecdsa", 0, "P-256"},
+		{"RSA", "rsa", 2048, ""},
+		{"Ed25519", "ed25519", 0, ""},
 	}
-	if signer == nil {
-		t.Fatal("expected non-nil signer")
-	}
-}
-
-func TestGenerateKey_RSA(t *testing.T) {
-	signer, err := GenerateKey("rsa", 2048, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if signer == nil {
-		t.Fatal("expected non-nil signer")
-	}
-}
-
-func TestGenerateKey_Ed25519(t *testing.T) {
-	signer, err := GenerateKey("ed25519", 0, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if signer == nil {
-		t.Fatal("expected non-nil signer")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			signer, err := GenerateKey(tt.algorithm, tt.bits, tt.curve)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if signer == nil {
+				t.Fatal("expected non-nil signer")
+			}
+		})
 	}
 }
 
