@@ -59,9 +59,9 @@ go build -o certkit ./cmd/certkit/
 | Flag | Default | Description |
 |---|---|---|
 | `--db`, `-d` | *(empty)* | SQLite database path (empty = in-memory) |
-| `--export` | `false` | Export certificate bundles after scanning |
+| `--bundle` | `false` | Export certificate bundles after scanning |
 | `--config`, `-c` | `./bundles.yaml` | Path to bundle config YAML |
-| `--out`, `-o` | *(required)* | Output directory for exported bundles |
+| `--out-path`, `-o` | *(required)* | Output directory for exported bundles |
 | `--force`, `-f` | `false` | Allow export of untrusted certificate bundles |
 | `--duplicates` | `false` | Export all certificates per bundle, not just the newest |
 | `--dump-keys` | *(empty)* | Dump all discovered keys to a single PEM file |
@@ -73,7 +73,7 @@ go build -o certkit ./cmd/certkit/
 | Flag | Default | Description |
 |---|---|---|
 | `--key` | *(empty)* | Private key file (PEM) |
-| `--out`, `-o` | *(stdout)* | Output file |
+| `--out-file`, `-o` | *(stdout)* | Output file |
 | `--format` | `pem` | Output format: `pem`, `chain`, `fullchain`, `p12`, `jks` |
 | `--force`, `-f` | `false` | Skip chain verification |
 | `--trust-store` | `mozilla` | Trust store: `system`, `mozilla` |
@@ -96,7 +96,7 @@ At least one of `--key`, `--chain`, or `--expiry` is required.
 | `--algorithm`, `-a` | `ecdsa` | Key algorithm: `rsa`, `ecdsa`, `ed25519` |
 | `--bits`, `-b` | `4096` | RSA key size in bits |
 | `--curve` | `P-256` | ECDSA curve: `P-256`, `P-384`, `P-521` |
-| `--out`, `-o` | *(stdout)* | Output directory (omit to print PEM to stdout) |
+| `--out-path`, `-o` | *(stdout)* | Output directory (omit to print PEM to stdout) |
 | `--cn` | *(empty)* | Common Name (triggers CSR generation) |
 | `--sans` | *(empty)* | Comma-separated SANs (triggers CSR generation) |
 
@@ -111,7 +111,7 @@ At least one of `--key`, `--chain`, or `--expiry` is required.
 | `--algorithm`, `-a` | `ecdsa` | Key algorithm for generated keys |
 | `--bits`, `-b` | `4096` | RSA key size in bits |
 | `--curve` | `P-256` | ECDSA curve |
-| `--out`, `-o` | *(stdout)* | Output directory (omit to print PEM to stdout) |
+| `--out-path`, `-o` | *(stdout)* | Output directory (omit to print PEM to stdout) |
 
 Exactly one of `--template`, `--cert`, or `--from-csr` is required.
 
@@ -120,13 +120,13 @@ Exactly one of `--template`, `--cert`, or `--from-csr` is required.
 Scan a directory and export bundles:
 
 ```sh
-certkit scan ./certs/ --export
+certkit scan ./certs/ --bundle
 ```
 
 Scan and export with a persistent database:
 
 ```sh
-certkit scan ./certs/ --export -d certs.db -o ./bundles
+certkit scan ./certs/ --bundle -d certs.db -o ./bundles
 ```
 
 Scan only (no export):
@@ -267,7 +267,7 @@ Bundles without an explicit `subject` block inherit from `defaultSubject`. Certi
 
 ## Output Files
 
-When running `certkit scan --export`, each bundle produces the following files under `<out>/<bundleName>/`:
+When running `certkit scan --bundle`, each bundle produces the following files under `<out>/<bundleName>/`:
 
 | File | Contents |
 |---|---|
@@ -305,7 +305,7 @@ Input files/stdin
   Resolve AKIs (match legacy SHA-1 AKIs to computed RFC 7093 M1 SKIs)
        |
        v
-  [if --export] Match keys to certs, build chains via certkit.Bundle,
+  [if --bundle] Match keys to certs, build chains via certkit.Bundle,
   write all output formats per bundle
 ```
 

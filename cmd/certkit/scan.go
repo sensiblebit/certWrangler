@@ -31,20 +31,20 @@ var (
 var scanCmd = &cobra.Command{
 	Use:   "scan <path>",
 	Short: "Scan and catalog certificates and keys",
-	Long:  "Scan a file or directory for certificates, keys, and CSRs. Prints a summary of what was found. Use --export to also export bundles.",
+	Long:  "Scan a file or directory for certificates, keys, and CSRs. Prints a summary of what was found. Use --bundle to also export bundles.",
 	Example: `  certkit scan /path/to/certs
   certkit scan cert.pem
   cat cert.pem | certkit scan -
-  certkit scan /path/to/certs --export -c bundles.yaml -o ./out`,
+  certkit scan /path/to/certs --bundle -c bundles.yaml -o ./out`,
 	Args: cobra.ExactArgs(1),
 	RunE: runScan,
 }
 
 func init() {
 	scanCmd.Flags().StringVarP(&dbPath, "db", "d", "", "SQLite database path (default: in-memory)")
-	scanCmd.Flags().BoolVar(&scanExport, "export", false, "Export certificate bundles after scanning")
+	scanCmd.Flags().BoolVar(&scanExport, "bundle", false, "Export certificate bundles after scanning")
 	scanCmd.Flags().StringVarP(&scanConfigPath, "config", "c", "./bundles.yaml", "Path to bundle config YAML")
-	scanCmd.Flags().StringVarP(&scanOutDir, "out", "o", "", "Output directory for exported bundles (required with --export)")
+	scanCmd.Flags().StringVarP(&scanOutDir, "out-path", "o", "", "Output directory for exported bundles (required with --bundle)")
 	scanCmd.Flags().BoolVarP(&scanForceExport, "force", "f", false, "Allow export of untrusted certificate bundles")
 	scanCmd.Flags().BoolVar(&scanDuplicates, "duplicates", false, "Export all certificates per bundle, not just the newest")
 	scanCmd.Flags().StringVar(&scanDumpKeys, "dump-keys", "", "Dump all discovered keys to a single PEM file")
@@ -56,7 +56,7 @@ func runScan(cmd *cobra.Command, args []string) error {
 	inputPath := args[0]
 
 	if scanExport && scanOutDir == "" {
-		return fmt.Errorf("--out is required when using --export")
+		return fmt.Errorf("--out-path is required when using --bundle")
 	}
 
 	db, err := internal.NewDB(dbPath)

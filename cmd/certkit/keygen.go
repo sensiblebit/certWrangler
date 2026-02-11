@@ -35,7 +35,7 @@ func init() {
 	keygenCmd.Flags().StringVarP(&keygenAlgorithm, "algorithm", "a", "ecdsa", "Key algorithm: rsa, ecdsa, or ed25519")
 	keygenCmd.Flags().IntVarP(&keygenBits, "bits", "b", 4096, "RSA key size in bits")
 	keygenCmd.Flags().StringVar(&keygenCurve, "curve", "P-256", "ECDSA curve: P-256, P-384, or P-521")
-	keygenCmd.Flags().StringVarP(&keygenOutPath, "out", "o", "", "Output directory (default: print to stdout)")
+	keygenCmd.Flags().StringVarP(&keygenOutPath, "out-path", "o", "", "Output directory (default: print to stdout)")
 	keygenCmd.Flags().StringVar(&keygenCN, "cn", "", "Common Name for CSR generation")
 	keygenCmd.Flags().StringSliceVar(&keygenSANs, "sans", nil, "Comma-separated SANs for CSR generation")
 }

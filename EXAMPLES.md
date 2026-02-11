@@ -212,7 +212,7 @@ bundles:
 Then scan and export:
 
 ```sh
-certkit scan /path/to/certs/ --export -c bundles.yaml -o ./bundles
+certkit scan /path/to/certs/ --bundle -c bundles.yaml -o ./bundles
 ```
 
 This creates a directory per bundle with every format you might need: PEM (leaf, chain, fullchain, intermediates, root), private key, PKCS#12, JKS, Kubernetes Secret, and a CSR for renewal.

@@ -42,7 +42,7 @@ func init() {
 	csrCmd.Flags().StringVarP(&csrAlgorithm, "algorithm", "a", "ecdsa", "Key algorithm: rsa, ecdsa, or ed25519")
 	csrCmd.Flags().IntVarP(&csrBits, "bits", "b", 4096, "RSA key size in bits")
 	csrCmd.Flags().StringVar(&csrCurve, "curve", "P-256", "ECDSA curve: P-256, P-384, or P-521")
-	csrCmd.Flags().StringVarP(&csrOutPath, "out", "o", "", "Output directory (default: print to stdout)")
+	csrCmd.Flags().StringVarP(&csrOutPath, "out-path", "o", "", "Output directory (default: print to stdout)")
 
 	csrCmd.MarkFlagsMutuallyExclusive("template", "cert", "from-csr")
 	csrCmd.MarkFlagsOneRequired("template", "cert", "from-csr")

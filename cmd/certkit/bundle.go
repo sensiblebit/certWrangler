@@ -42,7 +42,7 @@ certificates are used as extra intermediates for chain building.`,
 
 func init() {
 	bundleCmd.Flags().StringVar(&bundleKeyPath, "key", "", "Private key file (PEM)")
-	bundleCmd.Flags().StringVarP(&bundleOutFile, "out", "o", "", "Output file (default: stdout)")
+	bundleCmd.Flags().StringVarP(&bundleOutFile, "out-file", "o", "", "Output file (default: stdout)")
 	bundleCmd.Flags().StringVar(&bundleFormat, "format", "pem", "Output format: pem, chain, fullchain, p12, jks")
 	bundleCmd.Flags().BoolVarP(&bundleForce, "force", "f", false, "Skip chain verification")
 	bundleCmd.Flags().StringVar(&bundleTrustStore, "trust-store", "mozilla", "Trust store: system, mozilla")
