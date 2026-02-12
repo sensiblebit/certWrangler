@@ -26,6 +26,7 @@ var (
 	scanDumpKeys    string
 	scanDumpCerts   string
 	scanMaxFileSize int64
+	scanAllowExpired bool
 )
 
 var scanCmd = &cobra.Command{
@@ -50,6 +51,7 @@ func init() {
 	scanCmd.Flags().StringVar(&scanDumpKeys, "dump-keys", "", "Dump all discovered keys to a single PEM file")
 	scanCmd.Flags().StringVar(&scanDumpCerts, "dump-certs", "", "Dump all discovered certificates to a single PEM file")
 	scanCmd.Flags().Int64Var(&scanMaxFileSize, "max-file-size", 10*1024*1024, "Skip files larger than this size in bytes (0 to disable)")
+	scanCmd.Flags().BoolVar(&scanAllowExpired, "allow-expired", false, "Include expired certificates during ingestion")
 }
 
 func runScan(cmd *cobra.Command, args []string) error {
@@ -88,7 +90,7 @@ func runScan(cmd *cobra.Command, args []string) error {
 		ForceExport:    scanForceExport,
 		BundleConfigs:  bundleConfigs,
 		OutDir:         scanOutDir,
-		IncludeExpired: scanDumpCerts != "",
+		IncludeExpired: scanAllowExpired,
 	}
 
 	// Ingest

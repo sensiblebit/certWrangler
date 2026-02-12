@@ -52,7 +52,7 @@ Thin CLI layer. Each file is one Cobra command. Flag variables are package-level
 - **SKI computation uses RFC 7093 Method 1** (SHA-256 truncated to 160 bits), not the legacy SHA-1 method. `ComputeSKILegacy()` exists only for cross-matching with older certificates.
 - **AKI resolution** happens post-ingestion (`db.ResolveAKIs()`): builds a multi-hash lookup (RFC 7093 + legacy SHA-1) from all CA certs, then updates non-root cert AKIs to the computed SKI.
 - **Bundle matching** is exact CN string comparison, not glob. `*.example.com` in config matches a cert whose CN is literally `*.example.com`.
-- **Expired certificates are skipped** during ingestion by default (not stored in DB). Set `Config.IncludeExpired = true` to retain them (used by `--dump-certs`).
+- **Expired certificates are skipped** during ingestion by default (not stored in DB). Use `--allow-expired` to retain them.
 - **`x509.IsEncryptedPEMBlock` / `x509.DecryptPEMBlock`** are deprecated but intentionally used for legacy encrypted PEM support. Suppressed with `//nolint:staticcheck`.
 - **Trust stores**: "system" (OS cert pool), "mozilla" (embedded via `breml/rootcerts`), or "custom" (caller-provided).
 - **Inaccessible directories** are skipped with `filepath.SkipDir` during scan walks, not treated as errors.
