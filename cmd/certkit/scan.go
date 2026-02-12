@@ -148,24 +148,47 @@ func runScan(cmd *cobra.Command, args []string) error {
 		}
 		if len(certs) > 0 {
 			var data []byte
+			var count, skipped int
 			for _, c := range certs {
 				block, _ := pem.Decode([]byte(c.PEM))
-				if block != nil {
-					if cert, err := x509.ParseCertificate(block.Bytes); err == nil {
-						header := fmt.Sprintf("# Subject: %s\n# Issuer: %s\n# Not Before: %s\n# Not After : %s\n",
-							formatDN(cert.Subject),
-							formatDN(cert.Issuer),
-							cert.NotBefore.UTC().Format(time.RFC1123Z),
-							cert.NotAfter.UTC().Format(time.RFC1123Z))
-						data = append(data, header...)
+				if block == nil {
+					continue
+				}
+				cert, err := x509.ParseCertificate(block.Bytes)
+				if err != nil {
+					continue
+				}
+
+				// Validate chain unless --force is set
+				if !scanForceExport {
+					_, verifyErr := cert.Verify(x509.VerifyOptions{})
+					if verifyErr != nil {
+						slog.Debug("skipping unverified certificate", "subject", cert.Subject, "error", verifyErr)
+						skipped++
+						continue
 					}
 				}
+
+				header := fmt.Sprintf("# Subject: %s\n# Issuer: %s\n# Not Before: %s\n# Not After : %s\n",
+					formatDN(cert.Subject),
+					formatDN(cert.Issuer),
+					cert.NotBefore.UTC().Format(time.RFC1123Z),
+					cert.NotAfter.UTC().Format(time.RFC1123Z))
+				data = append(data, header...)
 				data = append(data, c.PEM...)
+				count++
 			}
-			if err := os.WriteFile(scanDumpCerts, data, 0644); err != nil {
-				return fmt.Errorf("writing certificates to %s: %w", scanDumpCerts, err)
+			if skipped > 0 {
+				fmt.Fprintf(os.Stderr, "Skipped %d unverified certificate(s) (use --force to include)\n", skipped)
 			}
-			fmt.Fprintf(os.Stderr, "Wrote %d certificate(s) to %s\n", len(certs), scanDumpCerts)
+			if count > 0 {
+				if err := os.WriteFile(scanDumpCerts, data, 0644); err != nil {
+					return fmt.Errorf("writing certificates to %s: %w", scanDumpCerts, err)
+				}
+				fmt.Fprintf(os.Stderr, "Wrote %d certificate(s) to %s\n", count, scanDumpCerts)
+			} else {
+				fmt.Fprintln(os.Stderr, "No verified certificates found to dump")
+			}
 		} else {
 			fmt.Fprintln(os.Stderr, "No certificates found to dump")
 		}
