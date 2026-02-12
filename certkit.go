@@ -90,7 +90,7 @@ func ParsePEMPrivateKey(pemData []byte) (crypto.PrivateKey, error) {
 // DefaultPasswords returns the list of passwords tried by default when decrypting
 // password-protected PEM blocks or PKCS#12 files. Returns a fresh copy each call.
 func DefaultPasswords() []string {
-	return []string{"", "password", "changeit"}
+	return []string{"", "password", "changeit", "keypassword"}
 }
 
 // ParsePEMPrivateKeyWithPasswords tries to parse a PEM-encoded private key.

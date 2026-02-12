@@ -82,9 +82,9 @@ func TestProcessPasswords_EmptyInputs(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// Should still have the 3 defaults
-	if len(result) != 3 {
-		t.Errorf("expected 3 default passwords, got %d: %v", len(result), result)
+	// Should still have the defaults ("", "password", "changeit", "keypassword")
+	if len(result) != 4 {
+		t.Errorf("expected 4 default passwords, got %d: %v", len(result), result)
 	}
 }
 
