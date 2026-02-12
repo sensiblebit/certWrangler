@@ -19,9 +19,8 @@ import (
 var (
 	dbPath          string
 	scanConfigPath  string
-	scanOutDir      string
+	scanBundlePath  string
 	scanForceExport bool
-	scanExport      bool
 	scanDuplicates  bool
 	scanDumpKeys    string
 	scanDumpCerts   string
@@ -32,20 +31,19 @@ var (
 var scanCmd = &cobra.Command{
 	Use:   "scan <path>",
 	Short: "Scan and catalog certificates and keys",
-	Long:  "Scan a file or directory for certificates, keys, and CSRs. Prints a summary of what was found. Use --bundle to also export bundles.",
+	Long:  "Scan a file or directory for certificates, keys, and CSRs. Prints a summary of what was found. Use --bundle-path to also export bundles.",
 	Example: `  certkit scan /path/to/certs
   certkit scan cert.pem
   cat cert.pem | certkit scan -
-  certkit scan /path/to/certs --bundle -c bundles.yaml -o ./out`,
+  certkit scan /path/to/certs --bundle-path ./out -c bundles.yaml`,
 	Args: cobra.ExactArgs(1),
 	RunE: runScan,
 }
 
 func init() {
 	scanCmd.Flags().StringVarP(&dbPath, "db", "d", "", "SQLite database path (default: in-memory)")
-	scanCmd.Flags().BoolVar(&scanExport, "bundle", false, "Export certificate bundles after scanning")
+	scanCmd.Flags().StringVar(&scanBundlePath, "bundle-path", "", "Export certificate bundles to this directory after scanning")
 	scanCmd.Flags().StringVarP(&scanConfigPath, "config", "c", "./bundles.yaml", "Path to bundle config YAML")
-	scanCmd.Flags().StringVarP(&scanOutDir, "out-path", "o", "", "Output directory for exported bundles (required with --bundle)")
 	scanCmd.Flags().BoolVarP(&scanForceExport, "force", "f", false, "Allow export of untrusted certificate bundles")
 	scanCmd.Flags().BoolVar(&scanDuplicates, "duplicates", false, "Export all certificates per bundle, not just the newest")
 	scanCmd.Flags().StringVar(&scanDumpKeys, "dump-keys", "", "Dump all discovered keys to a single PEM file")
@@ -57,9 +55,7 @@ func init() {
 func runScan(cmd *cobra.Command, args []string) error {
 	inputPath := args[0]
 
-	if scanExport && scanOutDir == "" {
-		return fmt.Errorf("--out-path is required when using --bundle")
-	}
+	scanExport := scanBundlePath != ""
 
 	db, err := internal.NewDB(dbPath)
 	if err != nil {
@@ -89,7 +85,7 @@ func runScan(cmd *cobra.Command, args []string) error {
 		ExportBundles:  scanExport,
 		ForceExport:    scanForceExport,
 		BundleConfigs:  bundleConfigs,
-		OutDir:         scanOutDir,
+		OutDir:         scanBundlePath,
 		IncludeExpired: scanAllowExpired,
 	}
 
@@ -180,10 +176,10 @@ func runScan(cmd *cobra.Command, args []string) error {
 		if err := db.ResolveAKIs(); err != nil {
 			slog.Warn("resolving AKIs", "error", err)
 		}
-		if err := os.MkdirAll(scanOutDir, 0755); err != nil {
-			return fmt.Errorf("creating output directory %s: %w", scanOutDir, err)
+		if err := os.MkdirAll(scanBundlePath, 0755); err != nil {
+			return fmt.Errorf("creating output directory %s: %w", scanBundlePath, err)
 		}
-		if err := internal.ExportBundles(cmd.Context(), bundleConfigs, scanOutDir, db, scanForceExport, scanDuplicates); err != nil {
+		if err := internal.ExportBundles(cmd.Context(), bundleConfigs, scanBundlePath, db, scanForceExport, scanDuplicates); err != nil {
 			return fmt.Errorf("exporting bundles: %w", err)
 		}
 		if err := db.DumpDB(); err != nil {

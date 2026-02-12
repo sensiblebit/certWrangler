@@ -40,12 +40,12 @@ Stateful operations: database, file I/O, CLI business logic.
 
 ### `cmd/certkit/`
 Thin CLI layer. Each file is one Cobra command. Flag variables are package-level (standard Cobra pattern). Commands delegate to `internal/` functions.
-- `scan.go` — Main scanning command with `--dump-keys`, `--dump-certs`, `--max-file-size`, `--bundle` flags. Contains `formatDN()` helper for OpenSSL-style distinguished name formatting.
+- `scan.go` — Main scanning command with `--dump-keys`, `--dump-certs`, `--max-file-size`, `--bundle-path`, `--allow-expired` flags. Contains `formatDN()` helper for OpenSSL-style distinguished name formatting.
 
 ## CLI Output Philosophy
 
 - **Stdout is for data, stderr is for everything else.** PEM output, JSON, scan summaries — anything a user might pipe goes to stdout. File paths, progress messages, warnings go to stderr. Follow the OpenSSL convention.
-- **Never write files without explicit consent.** Commands that produce PEM output print to stdout by default. Files are only written when the user provides `-o`. Export (`--bundle`) requires an explicit `-o` path. No silent writes to the current directory.
+- **Never write files without explicit consent.** Commands that produce PEM output print to stdout by default. Files are only written when the user provides `-o`. Export requires `--bundle-path <dir>`. No silent writes to the current directory.
 
 ## Key Design Decisions
 
