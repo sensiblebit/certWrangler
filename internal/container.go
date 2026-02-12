@@ -44,22 +44,19 @@ func ParseContainerData(data []byte, passwords []string) (*ContainerContents, er
 	}
 
 	// Try JKS
-	for _, pw := range passwords {
-		certs, keys, err := certkit.DecodeJKS(data, pw)
-		if err == nil {
-			var leaf *x509.Certificate
-			var extras []*x509.Certificate
-			if len(certs) > 0 {
-				leaf = certs[0]
-				extras = certs[1:]
-			}
-			var key crypto.PrivateKey
-			if len(keys) > 0 {
-				key = keys[0]
-			}
-			if leaf != nil {
-				return &ContainerContents{Leaf: leaf, Key: key, ExtraCerts: extras}, nil
-			}
+	if certs, keys, err := certkit.DecodeJKS(data, passwords); err == nil {
+		var leaf *x509.Certificate
+		var extras []*x509.Certificate
+		if len(certs) > 0 {
+			leaf = certs[0]
+			extras = certs[1:]
+		}
+		var key crypto.PrivateKey
+		if len(keys) > 0 {
+			key = keys[0]
+		}
+		if leaf != nil {
+			return &ContainerContents{Leaf: leaf, Key: key, ExtraCerts: extras}, nil
 		}
 	}
 

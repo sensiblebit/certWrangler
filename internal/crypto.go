@@ -290,12 +290,10 @@ func processDER(data []byte, path string, cfg *Config) {
 	// Try JKS (Java KeyStore) — magic bytes 0xFEEDFEED
 	if len(data) >= 4 && data[0] == 0xFE && data[1] == 0xED && data[2] == 0xFE && data[3] == 0xED {
 		slog.Debug("attempting JKS parsing")
-		for _, password := range cfg.Passwords {
-			certs, keys, err := certkit.DecodeJKS(data, password)
-			if err != nil {
-				slog.Debug("JKS decode failed", "password", password, "error", err)
-				continue
-			}
+		certs, keys, err := certkit.DecodeJKS(data, cfg.Passwords)
+		if err != nil {
+			slog.Debug("JKS decode failed", "error", err)
+		} else {
 			for _, cert := range certs {
 				certPEM := []byte(certkit.CertToPEM(cert))
 				processPEMCertificates(certPEM, path, cfg)

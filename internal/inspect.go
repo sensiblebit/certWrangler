@@ -115,11 +115,8 @@ func inspectDERData(data []byte, passwords []string) []InspectResult {
 
 	// Try JKS (Java KeyStore) — magic bytes 0xFEEDFEED
 	if len(data) >= 4 && data[0] == 0xFE && data[1] == 0xED && data[2] == 0xFE && data[3] == 0xED {
-		for _, password := range passwords {
-			certs, keys, err := certkit.DecodeJKS(data, password)
-			if err != nil {
-				continue
-			}
+		certs, keys, err := certkit.DecodeJKS(data, passwords)
+		if err == nil {
 			for _, cert := range certs {
 				results = append(results, inspectCert(cert))
 			}

@@ -186,7 +186,7 @@ func buildJKSMixed(t *testing.T, password string) []byte {
 func TestDecodeJKS_TrustedCertEntry(t *testing.T) {
 	data := buildJKSTrustedCert(t, "changeit")
 
-	certs, keys, err := DecodeJKS(data, "changeit")
+	certs, keys, err := DecodeJKS(data, []string{"changeit"})
 	if err != nil {
 		t.Fatalf("DecodeJKS: %v", err)
 	}
@@ -204,7 +204,7 @@ func TestDecodeJKS_TrustedCertEntry(t *testing.T) {
 func TestDecodeJKS_PrivateKeyEntry(t *testing.T) {
 	data := buildJKSPrivateKey(t, "changeit")
 
-	certs, keys, err := DecodeJKS(data, "changeit")
+	certs, keys, err := DecodeJKS(data, []string{"changeit"})
 	if err != nil {
 		t.Fatalf("DecodeJKS: %v", err)
 	}
@@ -223,7 +223,7 @@ func TestDecodeJKS_PrivateKeyEntry(t *testing.T) {
 func TestDecodeJKS_MixedEntries(t *testing.T) {
 	data := buildJKSMixed(t, "changeit")
 
-	certs, keys, err := DecodeJKS(data, "changeit")
+	certs, keys, err := DecodeJKS(data, []string{"changeit"})
 	if err != nil {
 		t.Fatalf("DecodeJKS: %v", err)
 	}
@@ -239,14 +239,97 @@ func TestDecodeJKS_MixedEntries(t *testing.T) {
 func TestDecodeJKS_WrongPassword(t *testing.T) {
 	data := buildJKSTrustedCert(t, "changeit")
 
-	_, _, err := DecodeJKS(data, "wrong")
+	_, _, err := DecodeJKS(data, []string{"wrong"})
 	if err == nil {
 		t.Error("expected error with wrong password")
 	}
 }
 
+func TestDecodeJKS_DifferentKeyPassword(t *testing.T) {
+	// Build a JKS where the store password differs from the key entry password
+	storePassword := "storepass"
+	keyPassword := "keypass"
+
+	caKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("generate CA key: %v", err)
+	}
+	caTmpl := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "KeyPass CA"},
+		NotBefore:             time.Now().Add(-1 * time.Hour),
+		NotAfter:              time.Now().Add(10 * 365 * 24 * time.Hour),
+		KeyUsage:              x509.KeyUsageCertSign,
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+	}
+	caDER, err := x509.CreateCertificate(rand.Reader, caTmpl, caTmpl, &caKey.PublicKey, caKey)
+	if err != nil {
+		t.Fatalf("create CA: %v", err)
+	}
+	caCert, _ := x509.ParseCertificate(caDER)
+
+	leafKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("generate leaf key: %v", err)
+	}
+	leafTmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(100),
+		Subject:      pkix.Name{CommonName: "keypass-leaf.example.com"},
+		DNSNames:     []string{"keypass-leaf.example.com"},
+		NotBefore:    time.Now().Add(-1 * time.Hour),
+		NotAfter:     time.Now().Add(365 * 24 * time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+	}
+	leafDER, err := x509.CreateCertificate(rand.Reader, leafTmpl, caCert, &leafKey.PublicKey, caKey)
+	if err != nil {
+		t.Fatalf("create leaf: %v", err)
+	}
+
+	pkcs8Key, err := x509.MarshalPKCS8PrivateKey(leafKey)
+	if err != nil {
+		t.Fatalf("marshal PKCS8: %v", err)
+	}
+
+	ks := keystore.New()
+	if err := ks.SetPrivateKeyEntry("server", keystore.PrivateKeyEntry{
+		CreationTime: time.Now(),
+		PrivateKey:   pkcs8Key,
+		CertificateChain: []keystore.Certificate{
+			{Type: "X.509", Content: leafDER},
+			{Type: "X.509", Content: caDER},
+		},
+	}, []byte(keyPassword)); err != nil {
+		t.Fatalf("set private key entry: %v", err)
+	}
+
+	var buf bytes.Buffer
+	if err := ks.Store(&buf, []byte(storePassword)); err != nil {
+		t.Fatalf("store JKS: %v", err)
+	}
+	data := buf.Bytes()
+
+	// Should fail with only the store password (can't decrypt key)
+	certs, keys, err := DecodeJKS(data, []string{storePassword})
+	if err == nil && len(keys) > 0 {
+		t.Error("expected no keys with only store password")
+	}
+
+	// Should succeed with both passwords
+	certs, keys, err = DecodeJKS(data, []string{storePassword, keyPassword})
+	if err != nil {
+		t.Fatalf("DecodeJKS with both passwords: %v", err)
+	}
+	if len(keys) != 1 {
+		t.Errorf("expected 1 key, got %d", len(keys))
+	}
+	if len(certs) != 2 {
+		t.Errorf("expected 2 certs (leaf + CA), got %d", len(certs))
+	}
+}
+
 func TestDecodeJKS_InvalidData(t *testing.T) {
-	_, _, err := DecodeJKS([]byte("not a keystore"), "changeit")
+	_, _, err := DecodeJKS([]byte("not a keystore"), []string{"changeit"})
 	if err == nil {
 		t.Error("expected error for invalid data")
 	}
@@ -295,7 +378,7 @@ func TestEncodeJKS(t *testing.T) {
 	}
 
 	// Round-trip: decode what we encoded
-	certs, keys, err := DecodeJKS(data, "changeit")
+	certs, keys, err := DecodeJKS(data, []string{"changeit"})
 	if err != nil {
 		t.Fatalf("DecodeJKS round-trip: %v", err)
 	}

@@ -12,17 +12,26 @@ import (
 )
 
 // DecodeJKS decodes a Java KeyStore (JKS) and returns the certificates and
-// private keys it contains. The same password is used for both the store and
-// individual entries (standard Java convention).
+// private keys it contains. Passwords are tried in order to open the store.
+// For private key entries, all passwords are tried independently since the
+// key password may differ from the store password.
 //
 // TrustedCertificateEntry entries yield certificates. PrivateKeyEntry entries
 // yield PKCS#8 private keys and their certificate chains. Individual entry
 // errors are skipped; an error is returned only if the store cannot be loaded
 // or no usable entries are found.
-func DecodeJKS(data []byte, password string) ([]*x509.Certificate, []crypto.PrivateKey, error) {
+func DecodeJKS(data []byte, passwords []string) ([]*x509.Certificate, []crypto.PrivateKey, error) {
 	ks := keystore.New()
-	if err := ks.Load(bytes.NewReader(data), []byte(password)); err != nil {
-		return nil, nil, fmt.Errorf("loading JKS: %w", err)
+
+	var loaded bool
+	for _, pw := range passwords {
+		if err := ks.Load(bytes.NewReader(data), []byte(pw)); err == nil {
+			loaded = true
+			break
+		}
+	}
+	if !loaded {
+		return nil, nil, fmt.Errorf("loading JKS: none of the provided passwords worked")
 	}
 
 	var certs []*x509.Certificate
@@ -42,25 +51,28 @@ func DecodeJKS(data []byte, password string) ([]*x509.Certificate, []crypto.Priv
 		}
 
 		if ks.IsPrivateKeyEntry(alias) {
-			entry, err := ks.GetPrivateKeyEntry(alias, []byte(password))
-			if err != nil {
-				continue
-			}
-
-			// Parse the PKCS#8 private key
-			key, err := x509.ParsePKCS8PrivateKey(entry.PrivateKey)
-			if err != nil {
-				continue
-			}
-			keys = append(keys, key)
-
-			// Parse the certificate chain
-			for _, certEntry := range entry.CertificateChain {
-				cert, err := x509.ParseCertificate(certEntry.Content)
+			for _, pw := range passwords {
+				entry, err := ks.GetPrivateKeyEntry(alias, []byte(pw))
 				if err != nil {
 					continue
 				}
-				certs = append(certs, cert)
+
+				// Parse the PKCS#8 private key
+				key, err := x509.ParsePKCS8PrivateKey(entry.PrivateKey)
+				if err != nil {
+					break // key data is bad, no point trying other passwords
+				}
+				keys = append(keys, key)
+
+				// Parse the certificate chain
+				for _, certEntry := range entry.CertificateChain {
+					cert, err := x509.ParseCertificate(certEntry.Content)
+					if err != nil {
+						continue
+					}
+					certs = append(certs, cert)
+				}
+				break
 			}
 		}
 	}
