@@ -47,6 +47,15 @@ Thin CLI layer. Each file is one Cobra command. Flag variables are package-level
 - **Stdout is for data, stderr is for everything else.** PEM output, JSON, scan summaries — anything a user might pipe goes to stdout. File paths, progress messages, warnings go to stderr. Follow the OpenSSL convention.
 - **Never write files without explicit consent.** Commands that produce PEM output print to stdout by default. Files are only written when the user provides `-o`. Export requires `--bundle-path <dir>`. No silent writes to the current directory.
 
+### Machine-readable output conventions
+These conventions ensure certkit output is reliably consumable by scripts, LLMs, and other tools:
+
+- **Every command that displays certificate/key info must support `--format json`.** Text is the default for humans; JSON is the contract for machines. If a command has structured output, it needs a JSON mode.
+- **JSON field names must be consistent across commands.** The same concept uses the same key everywhere. For example, SKI is always `subject_key_id`, never `ski` in one place and `subject_key_id` in another.
+- **All dates in RFC 3339 format.** No RFC 1123, no custom layouts. `2025-09-10T00:00:00Z`, always.
+- **Exit codes must be meaningful.** `0` = success, `1` = general error, `2` = validation failure (chain invalid, key mismatch, expired). Scripts need to distinguish "the cert is bad" from "the file doesn't exist."
+- **JSON output is a single object or array, one per line, ending with `\n`.** No mixed text/JSON. No log lines on stdout when `--format json` is used.
+
 ## Key Design Decisions
 
 - **SKI computation uses RFC 7093 Method 1** (SHA-256 truncated to 160 bits), not the legacy SHA-1 method. `ComputeSKILegacy()` exists only for cross-matching with older certificates.
