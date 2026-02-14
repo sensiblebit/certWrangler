@@ -9,6 +9,7 @@ var (
 	logLevel     string
 	passwordList []string
 	passwordFile string
+	allowExpired bool
 )
 
 var rootCmd = &cobra.Command{
@@ -27,6 +28,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&logLevel, "log-level", "l", "info", "Log level: debug, info, warn, error")
 	rootCmd.PersistentFlags().StringSliceVarP(&passwordList, "passwords", "p", nil, "Comma-separated passwords for encrypted keys")
 	rootCmd.PersistentFlags().StringVar(&passwordFile, "password-file", "", "File containing passwords, one per line")
+	rootCmd.PersistentFlags().BoolVar(&allowExpired, "allow-expired", false, "Include expired certificates")
 
 	rootCmd.AddCommand(scanCmd)
 	rootCmd.AddCommand(bundleCmd)

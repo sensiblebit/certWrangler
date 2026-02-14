@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"slices"
+	"time"
 
 	"github.com/sensiblebit/certkit"
 	"github.com/sensiblebit/certkit/internal"
@@ -78,6 +79,10 @@ func runBundle(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	if !allowExpired && leaf != nil && time.Now().After(leaf.NotAfter) {
+		return fmt.Errorf("certificate expired on %s (use --allow-expired to proceed)", leaf.NotAfter.UTC().Format(time.RFC3339))
 	}
 
 	opts := certkit.DefaultOptions()

@@ -79,6 +79,10 @@ func runVerify(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	if !allowExpired && contents.Leaf != nil && time.Now().After(contents.Leaf.NotAfter) {
+		return fmt.Errorf("certificate expired on %s (use --allow-expired to proceed)", contents.Leaf.NotAfter.UTC().Format(time.RFC3339))
+	}
+
 	// Load explicit key from --key flag (overrides embedded key)
 	var key crypto.PrivateKey
 	if verifyKeyPath != "" {

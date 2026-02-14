@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"slices"
+	"time"
 
 	"github.com/sensiblebit/certkit/internal"
 	"github.com/spf13/cobra"
@@ -33,6 +35,19 @@ func runInspect(cmd *cobra.Command, args []string) error {
 	results, err := internal.InspectFile(args[0], passwords)
 	if err != nil {
 		return err
+	}
+
+	if !allowExpired {
+		results = slices.DeleteFunc(results, func(r internal.InspectResult) bool {
+			if r.Type != "certificate" || r.NotAfter == "" {
+				return false
+			}
+			t, err := time.Parse(time.RFC3339, r.NotAfter)
+			return err == nil && time.Now().After(t)
+		})
+		if len(results) == 0 {
+			return fmt.Errorf("no valid (non-expired) certificates, keys, or CSRs found in %s (use --allow-expired to include expired)", args[0])
+		}
 	}
 
 	output, err := internal.FormatInspectResults(results, inspectFormat)
