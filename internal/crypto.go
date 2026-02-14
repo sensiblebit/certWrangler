@@ -13,6 +13,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -20,6 +21,25 @@ import (
 	"github.com/jmoiron/sqlx/types"
 	"github.com/sensiblebit/certkit"
 )
+
+// skippableDirs contains directory names that cannot contain certificates or keys
+// and should be skipped during filesystem walks to avoid unnecessary I/O.
+var skippableDirs = map[string]bool{
+	".git":         true,
+	".hg":          true,
+	".svn":         true,
+	"node_modules": true,
+	"__pycache__":  true,
+	".tox":         true,
+	".venv":        true,
+	"vendor":       true, // Go vendor — cert files belong in source, not vendored deps
+}
+
+// IsSkippableDir reports whether the given directory name should be skipped
+// during scanning because it cannot contain useful certificate or key files.
+func IsSkippableDir(name string) bool {
+	return skippableDirs[name]
+}
 
 // getKeyType returns a string description of the key type (includes bit length).
 // This is CLI-specific format, different from certkit.KeyAlgorithmName.
@@ -60,7 +80,7 @@ func processPEMCertificates(data []byte, path string, cfg *Config) bool {
 		// Always compute SKI from the public key (never use embedded SubjectKeyId)
 		rawSKI, err := certkit.ComputeSKI(cert.PublicKey)
 		if err != nil {
-			slog.Error("computing SKI for certificate", "serial", cert.SerialNumber, "error", err)
+			slog.Warn("skipping certificate with unsupported key type", "serial", cert.SerialNumber, "error", err)
 			continue
 		}
 		ski := hex.EncodeToString(rawSKI)
@@ -220,6 +240,19 @@ func processPEMPrivateKeys(data []byte, path string, cfg *Config) {
 			})
 			rec.KeyType = "ed25519"
 			rec.BitLength = len(k) * 8
+		case *ed25519.PrivateKey:
+			// ssh.ParseRawPrivateKey returns *ed25519.PrivateKey (pointer)
+			keyBytes, err := x509.MarshalPKCS8PrivateKey(*k)
+			if err != nil {
+				slog.Debug("marshaling Ed25519 private key", "path", path, "error", err)
+				continue
+			}
+			rec.KeyData = pem.EncodeToMemory(&pem.Block{
+				Type:  "PRIVATE KEY",
+				Bytes: keyBytes,
+			})
+			rec.KeyType = "ed25519"
+			rec.BitLength = ed25519.PrivateKeySize * 8
 		}
 
 		if err := cfg.DB.InsertKey(rec); err != nil {
@@ -230,6 +263,68 @@ func processPEMPrivateKeys(data []byte, path string, cfg *Config) {
 
 		slog.Info("found private key", "path", path, "ski", ski)
 	}
+}
+
+// derExtensions contains file extensions that may hold ASN.1/DER-encoded crypto
+// data (certificates, keys, PKCS#7, PKCS#12). Only files with these extensions
+// are tried as DER to avoid feeding arbitrary binary files to ASN.1 parsers.
+// Intentionally broad — people use all sorts of extensions for cert files.
+var derExtensions = map[string]bool{
+	// Certificates
+	".der":  true,
+	".cer":  true,
+	".crt":  true,
+	".cert": true,
+	".ca":   true,
+	".pem":  true, // sometimes DER despite extension
+	".arm":  true, // "armored" — used by some CAs
+
+	// Private keys
+	".key":     true,
+	".privkey": true,
+	".priv":    true,
+
+	// PKCS#12
+	".p12": true,
+	".pfx": true,
+
+	// PKCS#7
+	".p7b": true,
+	".p7c": true,
+	".p7":  true,
+	".spc": true, // Software Publisher Certificate
+
+	// PKCS#8
+	".p8": true,
+
+	// Combined / misc
+	".pki":              true,
+	".ssl":              true,
+	".tls":              true,
+	".x509":             true,
+	".chain":            true,
+	".bundle":           true,
+	".ca-bundle":        true,
+	".truststore":       true,
+	".mobileprovision":  true, // iOS provisioning profiles (PKCS#7 signed)
+	".provisionprofile": true, // macOS provisioning profiles
+}
+
+// jksExtensions contains file extensions for Java KeyStore files.
+var jksExtensions = map[string]bool{
+	".jks":        true,
+	".keystore":   true,
+	".truststore": true,
+	".bks":        true, // BouncyCastle KeyStore
+	".uber":       true, // BouncyCastle UBER keystore
+	".jceks":      true, // Java Cryptography Extension KeyStore
+}
+
+// hasBinaryExtension reports whether the file path has a recognized DER or JKS
+// extension. The extension is matched case-insensitively.
+func hasBinaryExtension(path string) bool {
+	ext := strings.ToLower(filepath.Ext(path))
+	return derExtensions[ext] || jksExtensions[ext]
 }
 
 func processDER(data []byte, path string, cfg *Config) {
@@ -354,6 +449,34 @@ func processDER(data []byte, path string, cfg *Config) {
 	slog.Debug("no known format matched DER data")
 }
 
+// ProcessData ingests certificates, keys, or CSRs from in-memory data.
+// The virtualPath identifies the data source for logging (may be a real path
+// or a synthetic path like "archive.zip:certs/server.pem").
+func ProcessData(data []byte, virtualPath string, cfg *Config) error {
+	slog.Debug("processing data", "path", virtualPath)
+
+	// Check if the data is PEM format
+	if certkit.IsPEM(data) {
+		slog.Debug("processing as PEM format")
+		processPEMCertificates(data, virtualPath, cfg)
+		processPEMCSR(data, virtualPath)
+		processPEMPrivateKeys(data, virtualPath, cfg)
+		return nil
+	}
+
+	// If not PEM, try as binary crypto format — but only for files with
+	// recognized crypto extensions (.der, .cer, .p12, .jks, etc.). Feeding
+	// arbitrary binary files to ASN.1/JKS parsers causes pathological memory
+	// allocation and CPU usage. GOMEMLIMIT (set in main.go) acts as a safety
+	// net for any edge cases that slip through.
+	if len(data) > 0 && hasBinaryExtension(virtualPath) {
+		slog.Debug("processing as binary crypto format", "path", virtualPath)
+		processDER(data, virtualPath, cfg)
+	}
+
+	return nil
+}
+
 // ProcessFile reads a file (or stdin when cfg.InputPath is "-") and ingests
 // any certificates, keys, or CSRs it contains into the database.
 func ProcessFile(path string, cfg *Config) error {
@@ -370,22 +493,5 @@ func ProcessFile(path string, cfg *Config) error {
 		return fmt.Errorf("could not read %s: %w", path, err)
 	}
 
-	slog.Debug("processing file", "path", path)
-
-	// Check if the data is PEM format
-	if certkit.IsPEM(data) {
-		slog.Debug("processing as PEM format")
-		processPEMCertificates(data, path, cfg)
-		processPEMCSR(data, path)
-		processPEMPrivateKeys(data, path, cfg)
-		return nil
-	}
-
-	// If not PEM, try as DER
-	if len(data) > 0 {
-		slog.Debug("processing as DER format")
-		processDER(data, path, cfg)
-	}
-
-	return nil
+	return ProcessData(data, path, cfg)
 }

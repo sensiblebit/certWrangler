@@ -4,9 +4,16 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"runtime/debug"
 )
 
 var version = "dev"
+
+func init() {
+	// Safety net: prevent runaway memory from malformed binary files triggering
+	// pathological ASN.1 allocations. 1GB is generous for any cert operation.
+	debug.SetMemoryLimit(1 << 30)
+}
 
 // ValidationError indicates a certificate validation failure (chain invalid,
 // key mismatch, expired). Commands return this to signal exit code 2.

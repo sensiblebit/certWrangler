@@ -21,7 +21,7 @@ import (
 
 func TestNewDB_InMemory(t *testing.T) {
 	// WHY: The in-memory SQLite DB is used for all tests and CLI operations; verifies the schema creates both required tables on initialization.
-	db, err := NewDB("")
+	db, err := NewDB()
 	if err != nil {
 		t.Fatalf("NewDB in-memory: %v", err)
 	}
@@ -39,7 +39,7 @@ func TestNewDB_InMemory(t *testing.T) {
 
 func TestInsertAndGetCertificate(t *testing.T) {
 	// WHY: Core CRUD test for certificates; verifies insert and retrieval by composite primary key (serial + AKI) preserves all essential fields.
-	db, err := NewDB("")
+	db, err := NewDB()
 	if err != nil {
 		t.Fatalf("NewDB: %v", err)
 	}
@@ -84,7 +84,7 @@ func TestInsertAndGetCertificate(t *testing.T) {
 
 func TestInsertAndGetKey(t *testing.T) {
 	// WHY: Core CRUD test for keys; verifies insert and retrieval by SKI preserves key type and bit length.
-	db, err := NewDB("")
+	db, err := NewDB()
 	if err != nil {
 		t.Fatalf("NewDB: %v", err)
 	}
@@ -120,7 +120,7 @@ func TestInsertAndGetKey(t *testing.T) {
 
 func TestGetCertBySKI_NotFound(t *testing.T) {
 	// WHY: A missing SKI lookup must return (nil, nil), not an error; callers rely on nil-cert to distinguish "not found" from "DB error."
-	db, err := NewDB("")
+	db, err := NewDB()
 	if err != nil {
 		t.Fatalf("NewDB: %v", err)
 	}
@@ -137,7 +137,7 @@ func TestGetCertBySKI_NotFound(t *testing.T) {
 
 func TestGetKey_NotFound(t *testing.T) {
 	// WHY: A missing key lookup must return (nil, nil); callers use nil-key to determine whether a cert has a matching private key.
-	db, err := NewDB("")
+	db, err := NewDB()
 	if err != nil {
 		t.Fatalf("NewDB: %v", err)
 	}
@@ -154,7 +154,7 @@ func TestGetKey_NotFound(t *testing.T) {
 
 func TestGetCert_NotFound(t *testing.T) {
 	// WHY: GetCert uses the composite key (serial + AKI); must return (nil, nil) for a miss, not an sql.ErrNoRows error.
-	db, err := NewDB("")
+	db, err := NewDB()
 	if err != nil {
 		t.Fatalf("NewDB: %v", err)
 	}
@@ -171,7 +171,7 @@ func TestGetCert_NotFound(t *testing.T) {
 
 func TestGetAllKeys(t *testing.T) {
 	// WHY: GetAllKeys drives the export pipeline; verifies it returns all inserted keys regardless of key type.
-	db, err := NewDB("")
+	db, err := NewDB()
 	if err != nil {
 		t.Fatalf("NewDB: %v", err)
 	}
@@ -199,7 +199,7 @@ func TestGetAllKeys(t *testing.T) {
 
 func TestDumpDB_NoError(t *testing.T) {
 	// WHY: DumpDB prints diagnostic output to stderr; verifies it does not error or panic when the DB contains certs and keys.
-	db, err := NewDB("")
+	db, err := NewDB()
 	if err != nil {
 		t.Fatalf("NewDB: %v", err)
 	}
@@ -239,7 +239,7 @@ func TestDumpDB_NoError(t *testing.T) {
 
 func TestGetScanSummary(t *testing.T) {
 	// WHY: The scan summary counts drive CLI output; verifies correct tallying of roots, intermediates, leaves, keys, and matched pairs including empty DB baseline.
-	db, err := NewDB("")
+	db, err := NewDB()
 	if err != nil {
 		t.Fatalf("NewDB: %v", err)
 	}
@@ -339,7 +339,7 @@ func TestResolveAKIs_AlreadyResolved(t *testing.T) {
 	ca := newRSACA(t)
 	leaf := newRSALeaf(t, ca, "resolve.example.com", []string{"resolve.example.com"}, nil)
 
-	db, err := NewDB("")
+	db, err := NewDB()
 	if err != nil {
 		t.Fatalf("NewDB: %v", err)
 	}
@@ -413,7 +413,7 @@ func TestResolveAKIs_CrossHash(t *testing.T) {
 	ca := newRSACA(t)
 	leaf := newRSALeaf(t, ca, "crosshash.example.com", []string{"crosshash.example.com"}, nil)
 
-	db, err := NewDB("")
+	db, err := NewDB()
 	if err != nil {
 		t.Fatalf("NewDB: %v", err)
 	}
@@ -490,7 +490,7 @@ func TestResolveAKIs_CrossHash(t *testing.T) {
 
 func TestResolveAKIs_NoIssuerFound(t *testing.T) {
 	// WHY: Orphan certificates (issuer not in DB) must survive AKI resolution unchanged; a bug here could delete or corrupt their AKI.
-	db, err := NewDB("")
+	db, err := NewDB()
 	if err != nil {
 		t.Fatalf("NewDB: %v", err)
 	}
@@ -530,7 +530,7 @@ func TestResolveAKIs_NoIssuerFound(t *testing.T) {
 
 func TestInsertAndGetCertificate_AllFields(t *testing.T) {
 	// WHY: Comprehensive round-trip test for every CertificateRecord field including MetadataJSON, SANsJSON, and timestamps; catches silent data loss in schema or mapping.
-	db, err := NewDB("")
+	db, err := NewDB()
 	if err != nil {
 		t.Fatalf("NewDB: %v", err)
 	}
@@ -614,7 +614,7 @@ func TestInsertAndGetCertificate_AllFields(t *testing.T) {
 
 func TestInsertAndGetKey_AllFields(t *testing.T) {
 	// WHY: Comprehensive round-trip test for every KeyRecord field including Curve, Modulus, and KeyData bytes; catches silent data loss in schema or mapping.
-	db, err := NewDB("")
+	db, err := NewDB()
 	if err != nil {
 		t.Fatalf("NewDB: %v", err)
 	}
@@ -707,7 +707,7 @@ func TestResolveAKIs_ThreeLevelChain(t *testing.T) {
 	intermediate := newIntermediateCA(t, root)
 	leaf := newRSALeaf(t, intermediate, "threelevel.example.com", []string{"threelevel.example.com"}, nil)
 
-	db, err := NewDB("")
+	db, err := NewDB()
 	if err != nil {
 		t.Fatalf("NewDB: %v", err)
 	}
@@ -850,7 +850,7 @@ func TestResolveAKIs_MultipleLeaves(t *testing.T) {
 	leaf1 := newRSALeaf(t, root, "leaf1.example.com", []string{"leaf1.example.com"}, nil)
 	leaf2 := newRSALeaf(t, root, "leaf2.example.com", []string{"leaf2.example.com"}, nil)
 
-	db, err := NewDB("")
+	db, err := NewDB()
 	if err != nil {
 		t.Fatalf("NewDB: %v", err)
 	}
@@ -966,7 +966,7 @@ func TestResolveAKIs_MultipleLeaves(t *testing.T) {
 
 func TestGetAllCerts_ReturnsAll(t *testing.T) {
 	// WHY: GetAllCerts is used for dump and summary; verifies it returns all inserted certs with correct serial numbers and common names.
-	db, err := NewDB("")
+	db, err := NewDB()
 	if err != nil {
 		t.Fatalf("NewDB: %v", err)
 	}
@@ -1052,7 +1052,7 @@ func TestGetAllCerts_ReturnsAll(t *testing.T) {
 
 func TestGetCertBySKI_Found(t *testing.T) {
 	// WHY: GetCertBySKI is the primary lookup used for cert-key matching; verifies all fields are returned correctly for an existing SKI.
-	db, err := NewDB("")
+	db, err := NewDB()
 	if err != nil {
 		t.Fatalf("NewDB: %v", err)
 	}
@@ -1121,7 +1121,7 @@ func TestGetCertBySKI_Found(t *testing.T) {
 
 func TestInsertKey_DuplicateSKI(t *testing.T) {
 	// WHY: INSERT OR IGNORE must preserve the original key when a duplicate SKI is inserted; a bug here could silently overwrite key material.
-	db, err := NewDB("")
+	db, err := NewDB()
 	if err != nil {
 		t.Fatalf("NewDB: %v", err)
 	}
@@ -1178,7 +1178,7 @@ func TestInsertKey_DuplicateSKI(t *testing.T) {
 
 func TestInsertCertificate_DuplicatePrimaryKey(t *testing.T) {
 	// WHY: INSERT OR IGNORE must preserve the original cert when a duplicate (serial + AKI) is inserted; a bug here could silently overwrite certificate data during re-scans.
-	db, err := NewDB("")
+	db, err := NewDB()
 	if err != nil {
 		t.Fatalf("NewDB: %v", err)
 	}
@@ -1246,7 +1246,7 @@ func TestInsertCertificate_DuplicatePrimaryKey(t *testing.T) {
 
 func TestGetAllCerts_EmptyDB(t *testing.T) {
 	// WHY: An empty DB must return a zero-length slice (not nil) without error; callers iterate the result without nil checks.
-	db, err := NewDB("")
+	db, err := NewDB()
 	if err != nil {
 		t.Fatalf("NewDB: %v", err)
 	}
@@ -1264,7 +1264,7 @@ func TestGetAllCerts_EmptyDB(t *testing.T) {
 
 func TestGetAllKeys_EmptyDB(t *testing.T) {
 	// WHY: An empty DB must return a zero-length slice without error; the export pipeline iterates keys and must not fail on an empty set.
-	db, err := NewDB("")
+	db, err := NewDB()
 	if err != nil {
 		t.Fatalf("NewDB: %v", err)
 	}
@@ -1282,7 +1282,7 @@ func TestGetAllKeys_EmptyDB(t *testing.T) {
 
 func TestDumpDB_EmptyDB(t *testing.T) {
 	// WHY: DumpDB must not error or panic on an empty database; users may run dump before scanning any files.
-	db, err := NewDB("")
+	db, err := NewDB()
 	if err != nil {
 		t.Fatalf("NewDB: %v", err)
 	}
@@ -1295,7 +1295,7 @@ func TestDumpDB_EmptyDB(t *testing.T) {
 
 func TestResolveAKIs_EmptyDB(t *testing.T) {
 	// WHY: ResolveAKIs must be a safe no-op on an empty DB; it runs unconditionally after every scan.
-	db, err := NewDB("")
+	db, err := NewDB()
 	if err != nil {
 		t.Fatalf("NewDB: %v", err)
 	}
@@ -1308,7 +1308,7 @@ func TestResolveAKIs_EmptyDB(t *testing.T) {
 
 func TestCompositePrimaryKey_SameSerialDifferentAKI(t *testing.T) {
 	// WHY: Different CAs can issue certs with the same serial number; the composite PK (serial + AKI) must allow both to coexist without conflict.
-	db, err := NewDB("")
+	db, err := NewDB()
 	if err != nil {
 		t.Fatalf("NewDB: %v", err)
 	}
@@ -1379,5 +1379,225 @@ func TestCompositePrimaryKey_SameSerialDifferentAKI(t *testing.T) {
 	}
 	if count != 2 {
 		t.Errorf("expected 2 certs with serial shared-serial-123, got %d", count)
+	}
+}
+
+func TestSaveToDisk_RoundTrip(t *testing.T) {
+	// WHY: SaveToDisk and LoadFromDisk are the primary persistence mechanism; verifies that certs and keys survive a save/load round-trip with all fields intact.
+	t.Parallel()
+
+	db, err := NewDB()
+	if err != nil {
+		t.Fatalf("NewDB: %v", err)
+	}
+	defer db.Close()
+
+	now := time.Now().Truncate(time.Second)
+	cert := CertificateRecord{
+		SerialNumber:           "save-serial",
+		SubjectKeyIdentifier:   "save-ski",
+		AuthorityKeyIdentifier: "save-aki",
+		CertType:               "leaf",
+		KeyType:                "RSA 2048 bits",
+		Expiry:                 now.Add(365 * 24 * time.Hour),
+		PEM:                    "-----BEGIN CERTIFICATE-----\nsave-test\n-----END CERTIFICATE-----",
+		NotBefore:              &now,
+		SANsJSON:               types.JSONText(`["save.example.com"]`),
+		CommonName:             sql.NullString{String: "save.example.com", Valid: true},
+		BundleName:             "save-bundle",
+	}
+	if err := db.InsertCertificate(cert); err != nil {
+		t.Fatalf("InsertCertificate: %v", err)
+	}
+
+	key := KeyRecord{
+		SubjectKeyIdentifier: "save-ski",
+		KeyType:              "rsa",
+		BitLength:            2048,
+		PublicExponent:       65537,
+		Modulus:              "save-modulus",
+		KeyData:              []byte("save-key-data"),
+	}
+	if err := db.InsertKey(key); err != nil {
+		t.Fatalf("InsertKey: %v", err)
+	}
+
+	// Save to a temp file
+	tmpFile := t.TempDir() + "/test.db"
+	if err := db.SaveToDisk(tmpFile); err != nil {
+		t.Fatalf("SaveToDisk: %v", err)
+	}
+
+	// Load into a fresh in-memory DB
+	db2, err := NewDB()
+	if err != nil {
+		t.Fatalf("NewDB (second): %v", err)
+	}
+	defer db2.Close()
+
+	if err := db2.LoadFromDisk(tmpFile); err != nil {
+		t.Fatalf("LoadFromDisk: %v", err)
+	}
+
+	// Verify certificate round-trip
+	gotCert, err := db2.GetCert("save-serial", "save-aki")
+	if err != nil {
+		t.Fatalf("GetCert: %v", err)
+	}
+	if gotCert == nil {
+		t.Fatal("expected cert after load, got nil")
+	}
+	if gotCert.CommonName.String != "save.example.com" {
+		t.Errorf("CommonName: got %q, want %q", gotCert.CommonName.String, "save.example.com")
+	}
+	if gotCert.SubjectKeyIdentifier != "save-ski" {
+		t.Errorf("SKI: got %q, want %q", gotCert.SubjectKeyIdentifier, "save-ski")
+	}
+	if gotCert.PEM != cert.PEM {
+		t.Errorf("PEM: got %q, want %q", gotCert.PEM, cert.PEM)
+	}
+
+	// Verify key round-trip
+	gotKey, err := db2.GetKey("save-ski")
+	if err != nil {
+		t.Fatalf("GetKey: %v", err)
+	}
+	if gotKey == nil {
+		t.Fatal("expected key after load, got nil")
+	}
+	if gotKey.KeyType != "rsa" {
+		t.Errorf("KeyType: got %q, want %q", gotKey.KeyType, "rsa")
+	}
+	if gotKey.BitLength != 2048 {
+		t.Errorf("BitLength: got %d, want %d", gotKey.BitLength, 2048)
+	}
+	if !bytes.Equal(gotKey.KeyData, []byte("save-key-data")) {
+		t.Errorf("KeyData: got %q, want %q", gotKey.KeyData, "save-key-data")
+	}
+}
+
+func TestLoadFromDisk_NonexistentFile(t *testing.T) {
+	// WHY: LoadFromDisk must return a clear error for missing files, not panic or corrupt the in-memory DB.
+	t.Parallel()
+
+	db, err := NewDB()
+	if err != nil {
+		t.Fatalf("NewDB: %v", err)
+	}
+	defer db.Close()
+
+	err = db.LoadFromDisk("/nonexistent/path/to/db.sqlite")
+	if err == nil {
+		t.Fatal("expected error for nonexistent file, got nil")
+	}
+}
+
+func TestSaveToDisk_OverwriteExisting(t *testing.T) {
+	// WHY: VACUUM INTO fails if the target file already exists; verifies the error is propagated clearly.
+	t.Parallel()
+
+	db, err := NewDB()
+	if err != nil {
+		t.Fatalf("NewDB: %v", err)
+	}
+	defer db.Close()
+
+	tmpFile := t.TempDir() + "/test.db"
+
+	// First save should succeed
+	if err := db.SaveToDisk(tmpFile); err != nil {
+		t.Fatalf("first SaveToDisk: %v", err)
+	}
+
+	// Second save to same path should fail (VACUUM INTO doesn't overwrite)
+	err = db.SaveToDisk(tmpFile)
+	if err == nil {
+		t.Fatal("expected error when saving to existing file, got nil")
+	}
+}
+
+func TestLoadFromDisk_MergesWithExisting(t *testing.T) {
+	// WHY: LoadFromDisk uses INSERT OR IGNORE, so existing in-memory data must not be overwritten; verifies merge semantics.
+	t.Parallel()
+
+	// Create first DB with cert A
+	db1, err := NewDB()
+	if err != nil {
+		t.Fatalf("NewDB (first): %v", err)
+	}
+	defer db1.Close()
+
+	now := time.Now().Truncate(time.Second)
+	certA := CertificateRecord{
+		SerialNumber:           "merge-serial-a",
+		SubjectKeyIdentifier:   "merge-ski-a",
+		AuthorityKeyIdentifier: "merge-aki-a",
+		CertType:               "leaf",
+		KeyType:                "RSA 2048 bits",
+		Expiry:                 now.Add(365 * 24 * time.Hour),
+		PEM:                    "-----BEGIN CERTIFICATE-----\nmerge-a\n-----END CERTIFICATE-----",
+		NotBefore:              &now,
+		SANsJSON:               types.JSONText(`[]`),
+		BundleName:             "merge-a",
+	}
+	if err := db1.InsertCertificate(certA); err != nil {
+		t.Fatalf("InsertCertificate A: %v", err)
+	}
+
+	tmpFile := t.TempDir() + "/merge.db"
+	if err := db1.SaveToDisk(tmpFile); err != nil {
+		t.Fatalf("SaveToDisk: %v", err)
+	}
+
+	// Create second DB with cert B, then load the file with cert A
+	db2, err := NewDB()
+	if err != nil {
+		t.Fatalf("NewDB (second): %v", err)
+	}
+	defer db2.Close()
+
+	certB := CertificateRecord{
+		SerialNumber:           "merge-serial-b",
+		SubjectKeyIdentifier:   "merge-ski-b",
+		AuthorityKeyIdentifier: "merge-aki-b",
+		CertType:               "root",
+		KeyType:                "ECDSA P-256",
+		Expiry:                 now.Add(365 * 24 * time.Hour),
+		PEM:                    "-----BEGIN CERTIFICATE-----\nmerge-b\n-----END CERTIFICATE-----",
+		NotBefore:              &now,
+		SANsJSON:               types.JSONText(`[]`),
+		BundleName:             "merge-b",
+	}
+	if err := db2.InsertCertificate(certB); err != nil {
+		t.Fatalf("InsertCertificate B: %v", err)
+	}
+
+	if err := db2.LoadFromDisk(tmpFile); err != nil {
+		t.Fatalf("LoadFromDisk: %v", err)
+	}
+
+	// Both certs should exist
+	all, err := db2.GetAllCerts()
+	if err != nil {
+		t.Fatalf("GetAllCerts: %v", err)
+	}
+	if len(all) != 2 {
+		t.Fatalf("expected 2 certs after merge, got %d", len(all))
+	}
+
+	gotA, err := db2.GetCert("merge-serial-a", "merge-aki-a")
+	if err != nil {
+		t.Fatalf("GetCert A: %v", err)
+	}
+	if gotA == nil {
+		t.Fatal("cert A should exist after load")
+	}
+
+	gotB, err := db2.GetCert("merge-serial-b", "merge-aki-b")
+	if err != nil {
+		t.Fatalf("GetCert B: %v", err)
+	}
+	if gotB == nil {
+		t.Fatal("cert B should still exist after load")
 	}
 }

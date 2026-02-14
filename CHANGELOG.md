@@ -7,17 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `--load-db` flag to scan command to load an existing database before scanning ([`pending`])
+- Add `--save-db` flag to scan command to save the in-memory database after scanning ([`pending`])
+- Scan inside ZIP, TAR, and TAR.GZ archives for certificates and keys with zip bomb protection ([`pending`])
+
+### Changed
+
+- **Breaking:** Remove `--db` flag from scan command; database is always in-memory ([`pending`])
+- Skip `.git`, `.hg`, `.svn`, `node_modules`, `__pycache__`, `.tox`, `.venv`, and `vendor` directories during scan to reduce I/O ([`pending`])
+- Add SQLite performance PRAGMAs and pin to single connection for in-memory DB ([`pending`])
+- Restructure CLAUDE.md with numbered sections, rule severity IDs, and Ralph Loop protocol ([`5702af2`])
+- Add pre-commit hooks: goimports, go vet, go build, go test, markdownlint ([`f8477ae`])
+
 ### Fixed
 
 - Remove password from PKCS#12 debug log output (SEC-2) ([`9188c94`])
 - Wrap all bare `return err` with `fmt.Errorf` context in CLI commands (ERR-1) ([`9188c94`])
 - Standardize all date output to RFC 3339 format (CLI-5) ([`9188c94`])
 - Fix shallow copy bug in bundle config `defaultSubject` inheritance ([`def2ada`])
-
-### Changed
-
-- Restructure CLAUDE.md with numbered sections, rule severity IDs, and Ralph Loop protocol ([`5702af2`])
-- Add pre-commit hooks: goimports, go vet, go build, go test, markdownlint ([`f8477ae`])
 
 ### Tests
 

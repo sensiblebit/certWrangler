@@ -18,7 +18,8 @@ import (
 )
 
 var (
-	dbPath          string
+	scanLoadDB      string
+	scanSaveDB      string
 	scanConfigPath  string
 	scanBundlePath  string
 	scanForceExport bool
@@ -42,7 +43,8 @@ var scanCmd = &cobra.Command{
 }
 
 func init() {
-	scanCmd.Flags().StringVarP(&dbPath, "db", "d", "", "SQLite database path (default: in-memory)")
+	scanCmd.Flags().StringVar(&scanLoadDB, "load-db", "", "Load an existing database into memory before scanning")
+	scanCmd.Flags().StringVar(&scanSaveDB, "save-db", "", "Save the in-memory database to disk after scanning")
 	scanCmd.Flags().StringVar(&scanBundlePath, "bundle-path", "", "Export certificate bundles to this directory after scanning")
 	scanCmd.Flags().StringVarP(&scanConfigPath, "config", "c", "./bundles.yaml", "Path to bundle config YAML")
 	scanCmd.Flags().BoolVarP(&scanForceExport, "force", "f", false, "Allow export of untrusted certificate bundles")
@@ -58,11 +60,17 @@ func runScan(cmd *cobra.Command, args []string) error {
 
 	scanExport := scanBundlePath != ""
 
-	db, err := internal.NewDB(dbPath)
+	db, err := internal.NewDB()
 	if err != nil {
 		return fmt.Errorf("initializing database: %w", err)
 	}
 	defer db.Close()
+
+	if scanLoadDB != "" {
+		if err := db.LoadFromDisk(scanLoadDB); err != nil {
+			return fmt.Errorf("loading database: %w", err)
+		}
+	}
 
 	passwords, err := internal.ProcessPasswords(passwordList, passwordFile)
 	if err != nil {
@@ -105,16 +113,55 @@ func runScan(cmd *cobra.Command, args []string) error {
 				slog.Warn("skipping inaccessible path", "path", path, "error", err)
 				return filepath.SkipDir
 			}
-			if !d.IsDir() {
+			if d.IsDir() {
+				if internal.IsSkippableDir(d.Name()) {
+					slog.Debug("skipping directory", "path", path)
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			// Resolve symlinks: skip broken links and links to directories
+			if d.Type()&fs.ModeSymlink != 0 {
+				fi, err := os.Stat(path)
+				if err != nil {
+					slog.Debug("skipping broken symlink", "path", path)
+					return nil
+				}
+				if fi.IsDir() {
+					slog.Debug("skipping symlink to directory", "path", path)
+					return nil
+				}
+			}
+			if scanMaxFileSize > 0 {
+				if info, err := d.Info(); err == nil && info.Size() > scanMaxFileSize {
+					slog.Debug("skipping large file", "path", path, "size", info.Size(), "max", scanMaxFileSize)
+					return nil
+				}
+			}
+			// Check for archive formats before falling through to ProcessFile
+			if archiveFormat := internal.ArchiveFormat(path); archiveFormat != "" {
+				data, readErr := os.ReadFile(path)
+				if readErr != nil {
+					slog.Warn("reading archive", "path", path, "error", readErr)
+					return nil
+				}
+				limits := internal.DefaultArchiveLimits()
 				if scanMaxFileSize > 0 {
-					if info, err := d.Info(); err == nil && info.Size() > scanMaxFileSize {
-						slog.Debug("skipping large file", "path", path, "size", info.Size(), "max", scanMaxFileSize)
-						return nil
-					}
+					limits.MaxEntrySize = scanMaxFileSize
 				}
-				if err := internal.ProcessFile(path, cfg); err != nil {
-					slog.Warn("processing file", "path", path, "error", err)
+				if _, archiveErr := internal.ProcessArchive(internal.ProcessArchiveInput{
+					ArchivePath: path,
+					Data:        data,
+					Format:      archiveFormat,
+					Limits:      limits,
+					Config:      cfg,
+				}); archiveErr != nil {
+					slog.Warn("processing archive", "path", path, "error", archiveErr)
 				}
+				return nil
+			}
+			if err := internal.ProcessFile(path, cfg); err != nil {
+				slog.Warn("processing file", "path", path, "error", err)
 			}
 			return nil
 		})
@@ -235,6 +282,12 @@ func runScan(cmd *cobra.Command, args []string) error {
 			}
 		default:
 			return fmt.Errorf("unsupported output format %q (use text or json)", scanFormat)
+		}
+	}
+
+	if scanSaveDB != "" {
+		if err := db.SaveToDisk(scanSaveDB); err != nil {
+			return fmt.Errorf("saving database: %w", err)
 		}
 	}
 

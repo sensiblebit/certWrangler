@@ -5,6 +5,7 @@ package certkit
 import (
 	"bytes"
 	"crypto"
+	"crypto/dsa"
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
@@ -18,8 +19,11 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"math/big"
 	"strings"
 	"time"
+
+	"golang.org/x/crypto/ssh"
 )
 
 // ParsePEMCertificates parses all certificates from a PEM bundle.
@@ -82,6 +86,13 @@ func ParsePEMPrivateKey(pemData []byte) (crypto.PrivateKey, error) {
 			return key, nil
 		}
 		return nil, errors.New("parsing PRIVATE KEY block with any known format")
+	case "OPENSSH PRIVATE KEY":
+		// OpenSSH format uses a proprietary encoding; delegate to x/crypto/ssh
+		key, err := ssh.ParseRawPrivateKey(pemData)
+		if err != nil {
+			return nil, fmt.Errorf("parsing OpenSSH private key: %w", err)
+		}
+		return key, nil
 	default:
 		return nil, fmt.Errorf("unsupported PEM block type %q", block.Type)
 	}
@@ -107,6 +118,20 @@ func ParsePEMPrivateKeyWithPasswords(pemData []byte, passwords []string) (crypto
 	block, _ := pem.Decode(pemData)
 	if block == nil {
 		return nil, errors.New("no PEM block found in private key data")
+	}
+
+	// OpenSSH keys use their own encryption format, not legacy RFC 1423
+	if block.Type == "OPENSSH PRIVATE KEY" {
+		for _, password := range passwords {
+			if password == "" {
+				continue // already tried unencrypted above
+			}
+			key, err := ssh.ParseRawPrivateKeyWithPassphrase(pemData, []byte(password))
+			if err == nil {
+				return key, nil
+			}
+		}
+		return nil, errors.New("parsing OpenSSH private key with any provided password")
 	}
 
 	//nolint:staticcheck // x509.IsEncryptedPEMBlock is deprecated but needed for legacy encrypted PEM support
@@ -276,10 +301,69 @@ func extractPublicKeyBitString(spkiDER []byte) ([]byte, error) {
 	return spki.PublicKey.Bytes, nil
 }
 
+// marshalPublicKeyDER marshals a public key to PKIX SubjectPublicKeyInfo DER.
+// Wraps x509.MarshalPKIXPublicKey with additional DSA support (RFC 3279).
+func marshalPublicKeyDER(pub crypto.PublicKey) ([]byte, error) {
+	// Try stdlib first (handles RSA, ECDSA, Ed25519)
+	der, err := x509.MarshalPKIXPublicKey(pub)
+	if err == nil {
+		return der, nil
+	}
+
+	// Handle DSA manually — Go stdlib doesn't support marshaling DSA keys
+	if dsaKey, ok := pub.(*dsa.PublicKey); ok {
+		return marshalDSAPublicKeyDER(dsaKey)
+	}
+
+	return nil, err
+}
+
+// marshalDSAPublicKeyDER encodes a DSA public key as PKIX SubjectPublicKeyInfo
+// per RFC 3279 Section 2.3.2.
+func marshalDSAPublicKeyDER(pub *dsa.PublicKey) ([]byte, error) {
+	// id-dsa OID: 1.2.840.10040.4.1
+	dsaOID := asn1.ObjectIdentifier{1, 2, 840, 10040, 4, 1}
+
+	type dsaParams struct {
+		P, Q, G *big.Int
+	}
+	paramBytes, err := asn1.Marshal(dsaParams{P: pub.P, Q: pub.Q, G: pub.G})
+	if err != nil {
+		return nil, fmt.Errorf("marshaling DSA parameters: %w", err)
+	}
+
+	pubKeyBytes, err := asn1.Marshal(pub.Y)
+	if err != nil {
+		return nil, fmt.Errorf("marshaling DSA public key: %w", err)
+	}
+
+	type algorithmIdentifier struct {
+		Algorithm  asn1.ObjectIdentifier
+		Parameters asn1.RawValue
+	}
+	type subjectPublicKeyInfo struct {
+		Algorithm algorithmIdentifier
+		PublicKey asn1.BitString
+	}
+
+	spki := subjectPublicKeyInfo{
+		Algorithm: algorithmIdentifier{
+			Algorithm:  dsaOID,
+			Parameters: asn1.RawValue{FullBytes: paramBytes},
+		},
+		PublicKey: asn1.BitString{
+			Bytes:     pubKeyBytes,
+			BitLength: len(pubKeyBytes) * 8,
+		},
+	}
+
+	return asn1.Marshal(spki)
+}
+
 // ComputeSKI computes a Subject Key Identifier using RFC 7093 Method 1:
 // SHA-256 of subjectPublicKey BIT STRING bytes, truncated to 160 bits (20 bytes).
 func ComputeSKI(pub crypto.PublicKey) ([]byte, error) {
-	der, err := x509.MarshalPKIXPublicKey(pub)
+	der, err := marshalPublicKeyDER(pub)
 	if err != nil {
 		return nil, fmt.Errorf("marshal PKIX: %w", err)
 	}
@@ -295,7 +379,7 @@ func ComputeSKI(pub crypto.PublicKey) ([]byte, error) {
 // SHA-1 of subjectPublicKey BIT STRING bytes (20 bytes).
 // Used only for AKI cross-matching with legacy certificates.
 func ComputeSKILegacy(pub crypto.PublicKey) ([]byte, error) {
-	der, err := x509.MarshalPKIXPublicKey(pub)
+	der, err := marshalPublicKeyDER(pub)
 	if err != nil {
 		return nil, fmt.Errorf("marshal PKIX: %w", err)
 	}

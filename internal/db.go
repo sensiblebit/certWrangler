@@ -55,30 +55,67 @@ func (db *DB) GetCertBySKI(ski string) (*CertificateRecord, error) {
 	return &cert, nil
 }
 
-// NewDB creates and initializes a new database connection.
-func NewDB(dbPath string) (*DB, error) {
-	// Determine connection string
-	connectionString := ":memory:"
-	if dbPath != "" {
-		connectionString = dbPath
-	}
-
-	// Open database connection
-	db, err := sqlx.Open("sqlite", connectionString)
+// NewDB creates and initializes a new in-memory database connection.
+// All operations run in-memory for performance. Use SaveToDisk/LoadFromDisk
+// to persist or restore data.
+func NewDB() (*DB, error) {
+	// Pin to a single connection — each :memory: connection is a separate
+	// database, so connection pooling must be disabled. PRAGMAs are set via
+	// the DSN so they apply automatically to reconnections.
+	dsn := "file::memory:?_pragma=temp_store(2)&_pragma=journal_mode(off)&_pragma=synchronous(off)"
+	db, err := sqlx.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("opening database: %w", err)
 	}
+	db.SetMaxOpenConns(1)
 
 	dbObj := &DB{DB: db}
 
-	// Initialize database schema
 	if err := dbObj.initSchema(); err != nil {
 		return nil, fmt.Errorf("initializing schema: %w", err)
 	}
 
-	slog.Debug("database initialized", "path", connectionString)
+	slog.Debug("database initialized")
 
 	return dbObj, nil
+}
+
+// SaveToDisk writes the in-memory database to a file at the given path.
+// Uses VACUUM INTO which produces a clean, compact copy in a single operation.
+func (db *DB) SaveToDisk(path string) error {
+	_, err := db.Exec("VACUUM INTO ?", path)
+	if err != nil {
+		return fmt.Errorf("saving database to %s: %w", path, err)
+	}
+	slog.Info("database saved to disk", "path", path)
+	return nil
+}
+
+// LoadFromDisk loads certificates and keys from an on-disk database into the
+// in-memory database. The file is read once and then detached.
+func (db *DB) LoadFromDisk(path string) error {
+	_, err := db.Exec("ATTACH DATABASE ? AS diskdb", path)
+	if err != nil {
+		return fmt.Errorf("attaching database %s: %w", path, err)
+	}
+	defer func() {
+		if _, err := db.Exec("DETACH DATABASE diskdb"); err != nil {
+			slog.Warn("detaching database", "path", path, "error", err)
+		}
+	}()
+
+	_, err = db.Exec("INSERT OR IGNORE INTO certificates SELECT * FROM diskdb.certificates")
+	if err != nil {
+		return fmt.Errorf("loading certificates from %s: %w", path, err)
+	}
+
+	_, err = db.Exec("INSERT OR IGNORE INTO keys SELECT * FROM diskdb.keys")
+	if err != nil {
+		return fmt.Errorf("loading keys from %s: %w", path, err)
+	}
+
+	slog.Info("database loaded from disk", "path", path)
+	return nil
 }
 
 func (db *DB) initSchema() error {

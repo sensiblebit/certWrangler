@@ -1,6 +1,10 @@
 package internal
 
 import (
+	"archive/tar"
+	"archive/zip"
+	"bytes"
+	"compress/gzip"
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
@@ -13,8 +17,6 @@ import (
 	"net"
 	"testing"
 	"time"
-
-	"bytes"
 
 	"github.com/pavlo-v-chernykh/keystore-go/v4"
 	"github.com/sensiblebit/certkit"
@@ -295,7 +297,7 @@ func newPKCS12Bundle(t *testing.T, leaf testLeaf, ca testCA, password string) []
 // newTestConfig creates a minimal Config with an in-memory database for testing.
 func newTestConfig(t *testing.T) *Config {
 	t.Helper()
-	db, err := NewDB("")
+	db, err := NewDB()
 	if err != nil {
 		t.Fatalf("create test DB: %v", err)
 	}
@@ -371,6 +373,76 @@ func newJKSBundle(t *testing.T, leaf testLeaf, ca testCA, password string) []byt
 	var buf bytes.Buffer
 	if err := ks.Store(&buf, []byte(password)); err != nil {
 		t.Fatalf("store JKS: %v", err)
+	}
+	return buf.Bytes()
+}
+
+// createTestZip creates a ZIP archive from a map of filename → content.
+func createTestZip(t *testing.T, files map[string][]byte) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	w := zip.NewWriter(&buf)
+	for name, data := range files {
+		fw, err := w.Create(name)
+		if err != nil {
+			t.Fatalf("create ZIP entry %s: %v", name, err)
+		}
+		if _, err := fw.Write(data); err != nil {
+			t.Fatalf("write ZIP entry %s: %v", name, err)
+		}
+	}
+	if err := w.Close(); err != nil {
+		t.Fatalf("close ZIP writer: %v", err)
+	}
+	return buf.Bytes()
+}
+
+// createTestTar creates a TAR archive from a map of filename → content.
+func createTestTar(t *testing.T, files map[string][]byte) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	for name, data := range files {
+		if err := tw.WriteHeader(&tar.Header{
+			Name: name,
+			Size: int64(len(data)),
+			Mode: 0644,
+		}); err != nil {
+			t.Fatalf("write TAR header %s: %v", name, err)
+		}
+		if _, err := tw.Write(data); err != nil {
+			t.Fatalf("write TAR entry %s: %v", name, err)
+		}
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatalf("close TAR writer: %v", err)
+	}
+	return buf.Bytes()
+}
+
+// createTestTarGz creates a gzip-compressed TAR archive from a map of filename → content.
+func createTestTarGz(t *testing.T, files map[string][]byte) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	gw := gzip.NewWriter(&buf)
+	tw := tar.NewWriter(gw)
+	for name, data := range files {
+		if err := tw.WriteHeader(&tar.Header{
+			Name: name,
+			Size: int64(len(data)),
+			Mode: 0644,
+		}); err != nil {
+			t.Fatalf("write TAR header %s: %v", name, err)
+		}
+		if _, err := tw.Write(data); err != nil {
+			t.Fatalf("write TAR entry %s: %v", name, err)
+		}
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatalf("close TAR writer: %v", err)
+	}
+	if err := gw.Close(); err != nil {
+		t.Fatalf("close gzip writer: %v", err)
 	}
 	return buf.Bytes()
 }
