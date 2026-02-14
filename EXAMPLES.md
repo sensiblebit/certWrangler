@@ -74,22 +74,28 @@ If they match, you'll see a success message. If not, you'll see an error.
 
 ## "Is my certificate chain valid?"
 
-Check that a cert chains up to a trusted root CA:
+Chain verification happens automatically -- certkit always checks that a cert chains up to a trusted root CA:
 
 ```sh
-certkit verify cert.pem --chain
+certkit verify cert.pem
 ```
 
 By default this checks against the Mozilla root store (embedded, works everywhere). To check against your OS trust store instead:
 
 ```sh
-certkit verify cert.pem --chain --trust-store system
+certkit verify cert.pem --trust-store system
 ```
 
 Combine all checks at once:
 
 ```sh
-certkit verify cert.pem --key key.pem --chain --expiry 30d
+certkit verify cert.pem --key key.pem --expiry 30d
+```
+
+For machine-readable output:
+
+```sh
+certkit verify cert.pem --format json
 ```
 
 ---
@@ -155,7 +161,7 @@ certkit scan /path/to/certs/
 
 Output looks like:
 
-```
+```text
 Found 12 certificate(s) and 3 key(s)
   Roots:         2
   Intermediates: 4
@@ -164,6 +170,12 @@ Found 12 certificate(s) and 3 key(s)
 ```
 
 This recursively walks the directory and handles PEM, DER, PKCS#12, JKS, and PKCS#7 files.
+
+For machine-readable output:
+
+```sh
+certkit scan /path/to/certs/ --format json
+```
 
 ---
 
@@ -175,7 +187,7 @@ Dump every discovered certificate into a single PEM file:
 certkit scan /path/to/certs/ --dump-certs all-certs.pem
 ```
 
-Each certificate gets an OpenSSL-style header comment showing subject, issuer, and validity dates.
+Each certificate gets an OpenSSL-style header comment showing subject, issuer, and validity dates. By default, only certificates that pass chain validation are included. Use `--force` to include unverified certificates.
 
 Dump every discovered private key into a single PEM file:
 
@@ -212,7 +224,7 @@ bundles:
 Then scan and export:
 
 ```sh
-certkit scan /path/to/certs/ --bundle -c bundles.yaml -o ./bundles
+certkit scan /path/to/certs/ --bundle-path ./bundles -c bundles.yaml
 ```
 
 This creates a directory per bundle with every format you might need: PEM (leaf, chain, fullchain, intermediates, root), private key, PKCS#12, JKS, Kubernetes Secret, and a CSR for renewal.
@@ -294,7 +306,7 @@ certkit scan /path/to/certs/ -p "secret1,secret2,changeit"
 certkit scan /path/to/certs/ --password-file passwords.txt
 ```
 
-certkit always tries empty string, `password`, and `changeit` automatically -- those cover most default passwords.
+certkit always tries empty string, `password`, `changeit`, and `keypassword` automatically -- those cover most default passwords.
 
 ---
 
@@ -307,6 +319,44 @@ cat cert.pem | certkit scan -
 ```
 
 Useful in scripts or when fetching certs from other tools.
+
+---
+
+## "I need to work with expired certificates"
+
+By default, certkit skips expired certificates in all commands. To include them:
+
+```sh
+certkit inspect expired-cert.pem --allow-expired
+certkit verify expired-cert.pem --allow-expired
+certkit bundle expired-cert.pem --allow-expired --force
+certkit scan /path/to/certs/ --allow-expired
+```
+
+---
+
+## "I want to use certkit in a script or CI/CD pipeline"
+
+certkit uses meaningful exit codes:
+
+| Exit code | Meaning |
+|---|---|
+| **0** | Success |
+| **1** | General error (bad input, missing file, etc.) |
+| **2** | Validation failure (chain invalid, key mismatch, expired) |
+
+Use `--format json` on `inspect`, `verify`, and `scan` for machine-readable output. Data always goes to stdout, warnings and progress to stderr, so piping works cleanly:
+
+```sh
+# Check cert in CI -- fails with exit code 2 if expiring within 30 days
+certkit verify cert.pem --expiry 30d
+
+# Parse cert info programmatically
+certkit inspect cert.pem --format json | jq '.subject'
+
+# Verify and capture result
+certkit verify cert.pem --format json > result.json
+```
 
 ---
 

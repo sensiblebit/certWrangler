@@ -1,0 +1,12 @@
+# https://github.com/DavidAnson/markdownlint/blob/main/schema/.markdownlint.yaml
+default: true
+
+# Allow long lines (tables, URLs, code examples)
+MD013: false
+
+# Allow duplicate headings in different sections
+MD024:
+  siblings_only: true
+
+# Allow HTML (some tables need it)
+MD033: false

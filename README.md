@@ -1,28 +1,24 @@
 # certkit
 
-A certificate management tool that ingests TLS/SSL certificates and private keys in various formats, catalogs them in a SQLite database, and exports organized bundles in multiple output formats.
+A Swiss Army knife for TLS/SSL certificates. Inspect, verify, bundle, scan, and generate certificates and keys -- all from a single tool.
 
-## Features
+## What can it do?
 
-- **Multi-format ingestion** -- PEM, DER, PKCS#12, PKCS#7, JKS, PKCS#8, encrypted PEM keys
-- **Automatic classification** -- Identifies root, intermediate, and leaf certificates
-- **Key type support** -- RSA, ECDSA, and Ed25519
-- **Chain bundling** -- Resolves certificate chains via AIA fetching with Mozilla or system trust stores
-- **Bundle export** -- Generates output in PEM (leaf, chain, fullchain, intermediates, root), PKCS#12, JKS, Kubernetes Secret YAML, JSON, YAML, and CSR formats
-- **Smart CSR generation** -- Produces renewal CSRs from existing certificates, JSON templates, or existing CSRs with configurable subject fields and intelligent SAN filtering
-- **SQLite catalog** -- Persistent or in-memory database indexed by Subject Key Identifier, serial number, and Authority Key Identifier
-- **Encrypted key handling** -- Tries user-supplied passwords plus common defaults (`""`, `"password"`, `"changeit"`)
-- **Certificate inspection** -- Display detailed certificate, key, and CSR information (text or JSON)
-- **Verification** -- Check chain validity, key-cert matching, and expiry windows
-- **Key generation** -- Generate RSA, ECDSA, or Ed25519 key pairs with optional CSR
+- **Inspect** any certificate, key, or CSR and see exactly what's in it
+- **Verify** that a cert chains to a trusted root, matches its key, and isn't about to expire
+- **Bundle** a leaf cert into a full chain for your web server (nginx, Apache, HAProxy, etc.)
+- **Scan** a directory full of certs and keys to understand what you have
+- **Generate** new key pairs and CSRs for certificate renewals
+- **Convert** between formats -- PEM, PKCS#12, JKS, PKCS#7, DER, Kubernetes Secrets
+
+Works with every common format out of the box. No OpenSSL gymnastics required.
 
 ## Install
 
 ### Homebrew (macOS)
 
 ```sh
-brew tap sensiblebit/tap
-brew install certkit
+brew install sensiblebit/tap/certkit
 ```
 
 ### Debian/Ubuntu (Linux)
@@ -35,68 +31,104 @@ sudo dpkg -i certkit_*.deb
 
 ### From source
 
-Requires Go 1.25+. No CGO required.
+Requires Go 1.25+.
 
 ```sh
 go build -o certkit ./cmd/certkit/
 ```
 
-## Usage
+## Quick Start
 
-### Commands
+See what's in a certificate:
 
-| Command | Description |
+```sh
+certkit inspect cert.pem
+```
+
+Check if it's valid and not expiring soon:
+
+```sh
+certkit verify cert.pem --expiry 30d
+```
+
+Build the full chain your web server needs:
+
+```sh
+certkit bundle cert.pem -o chain.pem
+```
+
+See [EXAMPLES.md](EXAMPLES.md) for a complete walkthrough of every command with real-world scenarios.
+
+## Commands
+
+| Command | What it does |
 |---|---|
-| `certkit scan <path>` | Scan and catalog certificates and keys, optionally export bundles |
-| `certkit bundle <file>` | Build a certificate chain from a leaf cert, P12, JKS, or P7B |
-| `certkit inspect <file>` | Display certificate, key, or CSR information |
-| `certkit verify <file>` | Verify chain, key-cert match, or expiry |
-| `certkit keygen` | Generate key pairs and optionally CSRs |
-| `certkit csr` | Generate a CSR from a template, certificate, or existing CSR |
+| `certkit inspect <file>` | Show what's in a cert, key, or CSR |
+| `certkit verify <file>` | Check chain, key match, and expiry |
+| `certkit bundle <file>` | Build a certificate chain from a leaf cert |
+| `certkit scan <path>` | Scan a directory and catalog everything found |
+| `certkit keygen` | Generate a new key pair (and optionally a CSR) |
+| `certkit csr` | Generate a CSR from a template, cert, or existing CSR |
+
+## License
+
+[MIT](LICENSE)
+
+---
+
+## Reference
 
 ### Global Flags
 
 | Flag | Default | Description |
 |---|---|---|
 | `--log-level`, `-l` | `info` | Log level: `debug`, `info`, `warn`, `error` |
-| `--passwords`, `-p` | *(empty)* | Comma-separated passwords for encrypted keys |
-| `--password-file` | *(empty)* | File containing passwords, one per line |
+| `--passwords`, `-p` | | Comma-separated passwords for encrypted keys |
+| `--password-file` | | File containing passwords, one per line |
+| `--allow-expired` | `false` | Include expired certificates |
 
-### Scan Flags
+Common passwords (`""`, `"password"`, `"changeit"`, `"keypassword"`) are always tried automatically.
 
-| Flag | Default | Description |
-|---|---|---|
-| `--db`, `-d` | *(empty)* | SQLite database path (empty = in-memory) |
-| `--bundle` | `false` | Export certificate bundles after scanning |
-| `--config`, `-c` | `./bundles.yaml` | Path to bundle config YAML |
-| `--out-path`, `-o` | *(required)* | Output directory for exported bundles |
-| `--force`, `-f` | `false` | Allow export of untrusted certificate bundles |
-| `--duplicates` | `false` | Export all certificates per bundle, not just the newest |
-| `--dump-keys` | *(empty)* | Dump all discovered keys to a single PEM file |
-| `--dump-certs` | *(empty)* | Dump all discovered certificates to a single PEM file |
-| `--max-file-size` | `10485760` | Skip files larger than this size in bytes (0 to disable) |
-
-### Bundle Flags
+### Inspect Flags
 
 | Flag | Default | Description |
 |---|---|---|
-| `--key` | *(empty)* | Private key file (PEM) |
-| `--out-file`, `-o` | *(stdout)* | Output file |
-| `--format` | `pem` | Output format: `pem`, `chain`, `fullchain`, `p12`, `jks` |
-| `--force`, `-f` | `false` | Skip chain verification |
-| `--trust-store` | `mozilla` | Trust store: `system`, `mozilla` |
+| `--format` | `text` | Output format: `text`, `json` |
 
 ### Verify Flags
 
 | Flag | Default | Description |
 |---|---|---|
-| `--key` | *(empty)* | Private key file to check against the certificate |
-| `--expiry`, `-e` | *(empty)* | Check if cert expires within duration (e.g., `30d`, `720h`) |
-| `--trust-store` | `mozilla` | Trust store for chain validation: `system`, `mozilla` |
+| `--key` | | Private key file to check against the certificate |
+| `--expiry`, `-e` | | Check if cert expires within duration (e.g., `30d`, `720h`) |
+| `--trust-store` | `mozilla` | Trust store: `system`, `mozilla` |
+| `--format` | `text` | Output format: `text`, `json` |
 
-Accepts PEM, DER, PKCS#12, JKS, or PKCS#7 input. The chain is always verified.
-When the input contains an embedded private key (PKCS#12, JKS), the key match
-is checked automatically.
+Chain verification is always performed. When the input contains an embedded private key (PKCS#12, JKS), key match is checked automatically.
+
+### Bundle Flags
+
+| Flag | Default | Description |
+|---|---|---|
+| `--key` | | Private key file (PEM) |
+| `--out-file`, `-o` | *(stdout)* | Output file |
+| `--format` | `pem` | Output format: `pem`, `chain`, `fullchain`, `p12`, `jks` |
+| `--force`, `-f` | `false` | Skip chain verification |
+| `--trust-store` | `mozilla` | Trust store: `system`, `mozilla` |
+
+### Scan Flags
+
+| Flag | Default | Description |
+|---|---|---|
+| `--db`, `-d` | *(in-memory)* | SQLite database path |
+| `--bundle-path` | | Export bundles to this directory |
+| `--config`, `-c` | `./bundles.yaml` | Path to bundle config YAML |
+| `--force`, `-f` | `false` | Allow export of untrusted certificate bundles |
+| `--duplicates` | `false` | Export all certificates per bundle, not just the newest |
+| `--dump-keys` | | Dump all discovered keys to a single PEM file |
+| `--dump-certs` | | Dump all discovered certificates to a single PEM file |
+| `--max-file-size` | `10485760` | Skip files larger than this size in bytes (0 to disable) |
+| `--format` | `text` | Output format: `text`, `json` |
 
 ### Keygen Flags
 
@@ -105,145 +137,34 @@ is checked automatically.
 | `--algorithm`, `-a` | `ecdsa` | Key algorithm: `rsa`, `ecdsa`, `ed25519` |
 | `--bits`, `-b` | `4096` | RSA key size in bits |
 | `--curve` | `P-256` | ECDSA curve: `P-256`, `P-384`, `P-521` |
-| `--out-path`, `-o` | *(stdout)* | Output directory (omit to print PEM to stdout) |
-| `--cn` | *(empty)* | Common Name (triggers CSR generation) |
-| `--sans` | *(empty)* | Comma-separated SANs (triggers CSR generation) |
+| `--out-path`, `-o` | *(stdout)* | Output directory |
+| `--cn` | | Common Name (triggers CSR generation) |
+| `--sans` | | Comma-separated SANs (triggers CSR generation) |
 
 ### CSR Flags
 
 | Flag | Default | Description |
 |---|---|---|
-| `--template` | *(empty)* | JSON template file for CSR generation |
-| `--cert` | *(empty)* | PEM certificate to use as CSR template |
-| `--from-csr` | *(empty)* | Existing PEM CSR to re-sign with a new key |
-| `--key` | *(empty)* | Existing private key file (PEM); generates new if omitted |
+| `--template` | | JSON template file for CSR generation |
+| `--cert` | | PEM certificate to use as CSR template |
+| `--from-csr` | | Existing PEM CSR to re-sign with a new key |
+| `--key` | | Existing private key file (PEM); generates new if omitted |
 | `--algorithm`, `-a` | `ecdsa` | Key algorithm for generated keys |
 | `--bits`, `-b` | `4096` | RSA key size in bits |
 | `--curve` | `P-256` | ECDSA curve |
-| `--out-path`, `-o` | *(stdout)* | Output directory (omit to print PEM to stdout) |
+| `--out-path`, `-o` | *(stdout)* | Output directory |
 
 Exactly one of `--template`, `--cert`, or `--from-csr` is required.
 
-### Examples
+### Exit Codes
 
-Scan a directory and export bundles:
+| Code | Meaning |
+|---|---|
+| `0` | Success |
+| `1` | General error (bad input, missing file, etc.) |
+| `2` | Validation failure (chain invalid, key mismatch, expired) |
 
-```sh
-certkit scan ./certs/ --bundle
-```
-
-Scan and export with a persistent database:
-
-```sh
-certkit scan ./certs/ --bundle -d certs.db -o ./bundles
-```
-
-Scan only (no export):
-
-```sh
-certkit scan ./certs/ -d certs.db
-```
-
-Build a chain bundle from a leaf cert (outputs PEM to stdout):
-
-```sh
-certkit bundle leaf.pem
-```
-
-Build a chain with a key, write to file:
-
-```sh
-certkit bundle leaf.pem --key key.pem -o chain.pem
-```
-
-Bundle a PKCS#12 file to PEM:
-
-```sh
-certkit bundle server.p12 -p "secret"
-```
-
-Build a fullchain (includes root):
-
-```sh
-certkit bundle leaf.pem --format fullchain -o fullchain.pem
-```
-
-Export as PKCS#12:
-
-```sh
-certkit bundle leaf.pem --key key.pem --format p12 -o bundle.p12
-```
-
-Dump all discovered keys and certificates:
-
-```sh
-certkit scan ./certs/ --dump-keys all-keys.pem --dump-certs all-certs.pem
-```
-
-Read from stdin:
-
-```sh
-cat server.pem | certkit scan -
-```
-
-Inspect a certificate file:
-
-```sh
-certkit inspect cert.pem
-certkit inspect cert.pem --format json
-```
-
-Verify a certificate (chain is always checked, key match is automatic for containers):
-
-```sh
-certkit verify cert.pem
-certkit verify store.p12
-certkit verify cert.pem --key key.pem --expiry 30d
-```
-
-Generate an ECDSA key pair (prints PEM to stdout):
-
-```sh
-certkit keygen
-```
-
-Generate an RSA key pair and write to files:
-
-```sh
-certkit keygen -a rsa -b 4096 -o ./keys
-```
-
-Generate a key pair with a CSR:
-
-```sh
-certkit keygen --cn example.com --sans "example.com,www.example.com"
-```
-
-Generate a CSR from a JSON template (prints PEM to stdout):
-
-```sh
-certkit csr --template request.json
-```
-
-Generate a CSR from an existing certificate:
-
-```sh
-certkit csr --cert existing.pem --algorithm rsa --bits 4096
-```
-
-Re-sign an existing CSR with a new key:
-
-```sh
-certkit csr --from-csr old.csr --key mykey.pem
-```
-
-Provide passwords for encrypted PKCS#12 or PEM files:
-
-```sh
-certkit scan ./certs/ -p "secret1,secret2" --password-file extra_passwords.txt
-```
-
-## Bundle Configuration
+### Bundle Configuration
 
 Bundles are defined in a YAML file that maps certificate Common Names to named bundles. An optional `defaultSubject` provides fallback X.509 subject fields for CSR generation.
 
@@ -275,9 +196,9 @@ bundles:
 
 Bundles without an explicit `subject` block inherit from `defaultSubject`. Certificate-to-bundle matching uses exact Common Name comparison against the `commonNames` list (a CN of `*.example.com` matches the literal wildcard string, not subdomains).
 
-## Output Files
+### Bundle Output Files
 
-When running `certkit scan --bundle`, each bundle produces the following files under `<out>/<bundleName>/`:
+When running `certkit scan --bundle-path`, each bundle produces the following files under `<dir>/<bundleName>/`:
 
 | File | Contents |
 |---|---|
@@ -294,34 +215,9 @@ When running `certkit scan --bundle`, each bundle produces the following files u
 | `<cn>.csr` | Certificate Signing Request |
 | `<cn>.csr.json` | CSR details (subject, SANs, key algorithm) |
 
-Wildcard characters in the CN are replaced with `_` in filenames (e.g., `*.example.com` becomes `_.example.com`). When multiple certificates match the same bundle, the newest gets the bare name and older ones receive a `_<date>_<serial>` suffix.
+Wildcard characters in the CN are replaced with `_` in filenames (e.g., `*.example.com` becomes `_.example.com`). The `.intermediates.pem` and `.root.pem` files are only created when those certificates exist in the chain.
 
-## How It Works
-
-```
-Input files/stdin
-       |
-       v
-  Format detection (PEM vs DER)
-       |
-       v
-  Parse certificates, keys, CSRs
-  (handles PKCS#12, PKCS#7, JKS, encrypted PEM, PKCS#8, SEC1, Ed25519)
-       |
-       v
-  Store in SQLite (certificates + keys indexed by SKI)
-       |
-       v
-  Resolve AKIs (match legacy SHA-1 AKIs to computed RFC 7093 M1 SKIs)
-       |
-       v
-  [if --bundle] Match keys to certs, build chains via certkit.Bundle,
-  write all output formats per bundle
-```
-
-Expired certificates are skipped during ingestion. Root certificates use their own Subject Key Identifier as their Authority Key Identifier (self-signed). Non-root certificate AKIs are resolved post-ingestion by matching embedded AKIs against a multi-hash lookup (RFC 7093 M1 SHA-256 + legacy SHA-1) of all CA certificates.
-
-## Library
+### Library
 
 The `certkit` Go package provides reusable certificate utilities:
 
@@ -342,9 +238,9 @@ if certkit.CertExpiresWithin(cert, 30*24*time.Hour) {
     // cert expires within 30 days
 }
 
-// Build verified chains
+// Build verified chains (library defaults to system trust store)
 opts := certkit.DefaultOptions()
-opts.TrustStore = "mozilla"
+opts.TrustStore = "mozilla" // or "system" (the default)
 bundle, _ := certkit.Bundle(ctx, leaf, opts)
 
 // Generate keys
@@ -360,6 +256,17 @@ p7, _ := certkit.EncodePKCS7(certs)
 jks, _ := certkit.EncodeJKS(key, leaf, intermediates, "changeit")
 ```
 
-## License
+### How It Works
 
-[MIT](LICENSE)
+```mermaid
+flowchart TD
+    A[Input files / stdin] --> B[Format detection - PEM vs DER]
+    B --> C[Parse certs, keys, CSRs<br/>PKCS#12, PKCS#7, JKS, encrypted PEM, PKCS#8, SEC1, Ed25519]
+    C --> D[Store in SQLite<br/>certificates + keys indexed by SKI]
+    D --> E[Resolve AKIs<br/>match legacy SHA-1 AKIs to computed RFC 7093 M1 SKIs]
+    E --> F{--bundle-path?}
+    F -- yes --> G[Match keys to certs, build chains,<br/>write all output formats per bundle]
+    F -- no --> H[Print scan summary]
+```
+
+Expired certificates are skipped during ingestion by default (use `--allow-expired` to include them). SKI computation uses RFC 7093 Method 1 (SHA-256 truncated to 160 bits). Non-root certificate AKIs are resolved post-ingestion by matching against a multi-hash lookup (RFC 7093 M1 + legacy SHA-1) of all CA certificates.

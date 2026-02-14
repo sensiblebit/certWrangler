@@ -244,6 +244,16 @@ func processDER(data []byte, path string, cfg *Config) {
 		return
 	}
 
+	// Try PKCS#7
+	if p7Certs, err := certkit.DecodePKCS7(data); err == nil && len(p7Certs) > 0 {
+		slog.Debug("parsed PKCS#7 certificate(s)", "count", len(p7Certs))
+		for _, cert := range p7Certs {
+			certPEM := []byte(certkit.CertToPEM(cert))
+			processPEMCertificates(certPEM, path, cfg)
+		}
+		return
+	}
+
 	// Try PKCS8
 	if key, err := x509.ParsePKCS8PrivateKey(data); err == nil && key != nil {
 		slog.Debug("parsed PKCS8 private key", "type", fmt.Sprintf("%T", key))

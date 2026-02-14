@@ -275,7 +275,7 @@ func TestDumpDB_NoError(t *testing.T) {
 	}
 }
 
-func TestResolveAKIs_SameMethod(t *testing.T) {
+func TestResolveAKIs_AlreadyResolved(t *testing.T) {
 	ca := newRSACA(t)
 	leaf := newRSALeaf(t, ca, "resolve.example.com", []string{"resolve.example.com"}, nil)
 

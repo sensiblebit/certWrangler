@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"strings"
 	"testing"
 	"time"
 
@@ -201,13 +202,54 @@ func TestVerifyCert_PKCS7(t *testing.T) {
 
 func TestFormatVerifyResult_OK(t *testing.T) {
 	match := true
+	chainValid := true
 	result := &VerifyResult{
-		Subject:  "CN=test",
-		NotAfter: "2030-01-01T00:00:00Z",
-		KeyMatch: &match,
+		Subject:    "CN=test",
+		NotAfter:   "2030-01-01T00:00:00Z",
+		SKI:        "aabbccdd",
+		KeyMatch:   &match,
+		KeyInfo:    "ECDSA P-256",
+		ChainValid: &chainValid,
 	}
 	output := FormatVerifyResult(result)
-	if output == "" {
-		t.Error("expected non-empty output")
+	if !strings.Contains(output, "CN=test") {
+		t.Error("output should contain subject CN=test")
+	}
+	if !strings.Contains(output, "2030-01-01T00:00:00Z") {
+		t.Error("output should contain not_after date")
+	}
+	if !strings.Contains(output, "Key Match: OK") {
+		t.Error("output should contain key match OK")
+	}
+	if !strings.Contains(output, "ECDSA P-256") {
+		t.Error("output should contain key info")
+	}
+	if !strings.Contains(output, "Chain: VALID") {
+		t.Error("output should contain chain valid")
+	}
+	if !strings.Contains(output, "Verification OK") {
+		t.Error("output should contain Verification OK")
+	}
+}
+
+func TestFormatVerifyResult_Failed(t *testing.T) {
+	match := false
+	result := &VerifyResult{
+		Subject:  "CN=bad",
+		NotAfter: "2030-01-01T00:00:00Z",
+		SKI:      "deadbeef",
+		KeyMatch: &match,
+		KeyInfo:  "RSA 2048",
+		Errors:   []string{"key does not match certificate"},
+	}
+	output := FormatVerifyResult(result)
+	if !strings.Contains(output, "Key Match: MISMATCH") {
+		t.Error("output should contain MISMATCH")
+	}
+	if !strings.Contains(output, "Verification FAILED") {
+		t.Error("output should contain Verification FAILED")
+	}
+	if !strings.Contains(output, "1 error") {
+		t.Error("output should mention error count")
 	}
 }

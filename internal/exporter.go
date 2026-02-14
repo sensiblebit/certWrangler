@@ -208,7 +208,7 @@ func generateJSON(bundle *certkit.BundleResult) ([]byte, error) {
 		"sigalg":           bundle.Leaf.SignatureAlgorithm.String(),
 		"subject": map[string]any{
 			"common_name": bundle.Leaf.Subject.CommonName,
-			"names":       []string{bundle.Leaf.Subject.CommonName},
+			"names":       sans,
 		},
 		"subject_key_id": subjectKeyID,
 	}

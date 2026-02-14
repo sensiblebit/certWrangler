@@ -119,7 +119,20 @@ func TestGenerateKeyFiles_WithCSR(t *testing.T) {
 		t.Errorf("CSR CN=%q, want test.example.com", csr.Subject.CommonName)
 	}
 	if len(csr.DNSNames) != 2 {
-		t.Errorf("CSR DNS names count=%d, want 2", len(csr.DNSNames))
+		t.Fatalf("CSR DNS names count=%d, want 2", len(csr.DNSNames))
+	}
+	wantDNS := map[string]bool{"test.example.com": false, "www.test.example.com": false}
+	for _, name := range csr.DNSNames {
+		if _, ok := wantDNS[name]; ok {
+			wantDNS[name] = true
+		} else {
+			t.Errorf("unexpected DNS name %q in CSR", name)
+		}
+	}
+	for name, found := range wantDNS {
+		if !found {
+			t.Errorf("missing expected DNS name %q in CSR", name)
+		}
 	}
 	if err := certkit.VerifyCSR(csr); err != nil {
 		t.Errorf("CSR verification failed: %v", err)

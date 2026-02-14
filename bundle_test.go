@@ -103,7 +103,26 @@ func TestBundle_mozillaRoots(t *testing.T) {
 		t.Error("expected at least 1 intermediate")
 	}
 	if len(result.Roots) == 0 {
-		t.Error("expected at least 1 root")
+		t.Fatal("expected at least 1 root")
+	}
+
+	// Verify the leaf matches what we fetched
+	if result.Leaf.Subject.CommonName != leaf.Subject.CommonName {
+		t.Errorf("leaf CN = %q, want %q", result.Leaf.Subject.CommonName, leaf.Subject.CommonName)
+	}
+
+	// Verify root is actually a CA
+	if !result.Roots[0].IsCA {
+		t.Error("root certificate should be a CA")
+	}
+
+	// Verify chain ordering: leaf → intermediates → root
+	if len(result.Intermediates) > 0 {
+		// First intermediate should be issued by something other than itself
+		inter := result.Intermediates[0]
+		if !inter.IsCA {
+			t.Error("intermediate should be a CA")
+		}
 	}
 }
 

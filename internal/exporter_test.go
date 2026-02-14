@@ -412,8 +412,17 @@ func TestGenerateJSON_RoundTrip(t *testing.T) {
 		t.Errorf("subject.common_name = %q, want json-rt.example.com", cn)
 	}
 	names, ok := subj["names"].([]any)
-	if !ok || len(names) != 1 || names[0] != "json-rt.example.com" {
-		t.Errorf("subject.names = %v, want [json-rt.example.com]", names)
+	if !ok || len(names) != 3 {
+		t.Errorf("subject.names = %v, want 3 entries (2 DNS + 1 IP)", names)
+	}
+	nameStrings := make(map[string]bool)
+	for _, n := range names {
+		nameStrings[n.(string)] = true
+	}
+	for _, expected := range []string{"json-rt.example.com", "www.json-rt.example.com", "10.0.0.1"} {
+		if !nameStrings[expected] {
+			t.Errorf("subject.names missing %q", expected)
+		}
 	}
 
 	// Validate issuer
@@ -656,9 +665,23 @@ func TestWriteBundleFiles_K8sYAMLDecode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("decode tls.key base64: %v", err)
 	}
-	_, err = certkit.ParsePEMPrivateKey(tlsKey)
+	parsedKey, err := certkit.ParsePEMPrivateKey(tlsKey)
 	if err != nil {
 		t.Fatalf("parse tls.key PEM: %v", err)
+	}
+
+	// Verify key type matches what we put in
+	if certkit.KeyAlgorithmName(parsedKey) != "RSA" {
+		t.Errorf("key algorithm = %q, want RSA", certkit.KeyAlgorithmName(parsedKey))
+	}
+
+	// Verify key matches the certificate
+	match, err := certkit.KeyMatchesCert(parsedKey, certs[0])
+	if err != nil {
+		t.Fatalf("KeyMatchesCert: %v", err)
+	}
+	if !match {
+		t.Error("tls.key should match tls.crt leaf certificate")
 	}
 }
 

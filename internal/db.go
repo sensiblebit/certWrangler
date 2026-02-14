@@ -13,8 +13,8 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/jmoiron/sqlx/types"
-	_ "modernc.org/sqlite"
 	"github.com/sensiblebit/certkit"
+	_ "modernc.org/sqlite"
 )
 
 // DB represents the database connection.

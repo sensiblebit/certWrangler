@@ -114,8 +114,8 @@ func TestGenerateCSR_nonSignerKey(t *testing.T) {
 
 func TestClassifyHosts(t *testing.T) {
 	tests := []struct {
-		name                              string
-		hosts                             []string
+		name                                   string
+		hosts                                  []string
 		wantDNS, wantIPs, wantURIs, wantEmails int
 	}{
 		{"DNS only", []string{"example.com", "www.example.com"}, 2, 0, 0, 0},

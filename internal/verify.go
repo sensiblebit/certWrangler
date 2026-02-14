@@ -34,19 +34,19 @@ type ChainCert struct {
 
 // VerifyResult holds the results of certificate verification checks.
 type VerifyResult struct {
-	Subject     string   `json:"subject"`
-	SANs        []string `json:"sans,omitempty"`
-	NotAfter    string   `json:"not_after"`
-	SKI         string   `json:"subject_key_id,omitempty"`
-	KeyMatch    *bool    `json:"key_match,omitempty"`
-	KeyMatchErr string   `json:"key_match_error,omitempty"`
-	KeyInfo     string   `json:"key_info,omitempty"`
-	ChainValid  *bool    `json:"chain_valid,omitempty"`
-	ChainErr    string   `json:"chain_error,omitempty"`
+	Subject     string      `json:"subject"`
+	SANs        []string    `json:"sans,omitempty"`
+	NotAfter    string      `json:"not_after"`
+	SKI         string      `json:"subject_key_id,omitempty"`
+	KeyMatch    *bool       `json:"key_match,omitempty"`
+	KeyMatchErr string      `json:"key_match_error,omitempty"`
+	KeyInfo     string      `json:"key_info,omitempty"`
+	ChainValid  *bool       `json:"chain_valid,omitempty"`
+	ChainErr    string      `json:"chain_error,omitempty"`
 	Chain       []ChainCert `json:"chain,omitempty"`
-	Expiry      *bool    `json:"expires_within,omitempty"`
-	ExpiryInfo  string   `json:"expiry_info,omitempty"`
-	Errors      []string `json:"errors,omitempty"`
+	Expiry      *bool       `json:"expires_within,omitempty"`
+	ExpiryInfo  string      `json:"expiry_info,omitempty"`
+	Errors      []string    `json:"errors,omitempty"`
 }
 
 // VerifyCert verifies a certificate with optional key matching, chain validation, and expiry checking.

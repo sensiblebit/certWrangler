@@ -10,14 +10,16 @@ Certificate management tool: ingest certs/keys in many formats, catalog in SQLit
 
 ## Package Structure
 
-```
+```text
 certkit.go, bundle.go, csr.go, pkcs.go, jks.go   # Root package: exported library API
 cmd/certkit/                                        # CLI (Cobra commands)
 internal/                                           # Business logic (not exported)
 ```
 
 ### Root package (`certkit`)
+
 Stateless utility functions. No database, no file I/O. This is the public library API.
+
 - `certkit.go` — PEM parsing, key generation, fingerprints, SKI computation
 - `bundle.go` — Certificate chain resolution via AIA, trust store verification
 - `csr.go` — CSR generation from certs, templates, or existing CSRs
@@ -25,10 +27,12 @@ Stateless utility functions. No database, no file I/O. This is the public librar
 - `jks.go` — Java KeyStore encode/decode
 
 ### `internal/`
+
 Stateful operations: database, file I/O, CLI business logic.
+
 - `db.go` — SQLite via sqlx + modernc.org/sqlite (pure Go). `DB` struct wraps `*sqlx.DB`. Schema: `certificates` and `keys` tables indexed by SKI. Key methods: `InsertCertificate`, `InsertKey`, `GetCert`, `GetKey`, `GetCertBySKI`, `GetAllCerts`, `GetAllKeys`, `GetScanSummary`, `ResolveAKIs`, `DumpDB`.
 - `crypto.go` — File ingestion pipeline. `ProcessFile()` is the main entry point. Detects PEM vs DER, tries all formats (PEM, DER, PKCS#12, PKCS#7, JKS, PKCS#8, SEC1, Ed25519).
-- `exporter.go` — Bundle export. `ExportBundles()` iterates keys, finds matching certs, builds chains, writes all output formats. `writeBundleFiles()` produces 12 output files per bundle.
+- `exporter.go` — Bundle export. `ExportBundles()` iterates keys, finds matching certs, builds chains, writes all output formats. `writeBundleFiles()` produces up to 12 output files per bundle (intermediates and root files are conditional).
 - `bundleconfig.go` — YAML config parsing. Supports `defaultSubject` inheritance.
 - `inspect.go` — Certificate/key/CSR inspection with text and JSON output.
 - `verify.go` — Chain validation, key-cert matching, expiry checking.
@@ -36,10 +40,13 @@ Stateful operations: database, file I/O, CLI business logic.
 - `csr.go` — CSR generation from templates, certs, or existing CSRs.
 - `passwords.go` — Password aggregation and deduplication.
 - `logger.go` — slog setup.
+- `container.go` — Container file parsing. `LoadContainerFile()` and `ParseContainerData()` extract leaf certs, keys, and extra certs from PKCS#12, JKS, PKCS#7, PEM, or DER input.
 - `types.go` — Shared types: `Config`, `CertificateRecord`, `KeyRecord`, `K8sSecret`.
 
 ### `cmd/certkit/`
+
 Thin CLI layer. Each file is one Cobra command. Flag variables are package-level (standard Cobra pattern). Commands delegate to `internal/` functions.
+
 - `scan.go` — Main scanning command with `--dump-keys`, `--dump-certs`, `--max-file-size`, `--bundle-path` flags. Contains `formatDN()` helper for OpenSSL-style distinguished name formatting.
 
 ## CLI Output Philosophy
@@ -48,6 +55,7 @@ Thin CLI layer. Each file is one Cobra command. Flag variables are package-level
 - **Never write files without explicit consent.** Commands that produce PEM output print to stdout by default. Files are only written when the user provides `-o`. Export requires `--bundle-path <dir>`. No silent writes to the current directory.
 
 ### Machine-readable output conventions
+
 These conventions ensure certkit output is reliably consumable by scripts, LLMs, and other tools:
 
 - **Every command that displays certificate/key info must support `--format json`.** Text is the default for humans; JSON is the contract for machines. If a command has structured output, it needs a JSON mode.
@@ -67,6 +75,23 @@ These conventions ensure certkit output is reliably consumable by scripts, LLMs,
 - **Inaccessible directories** are skipped with `filepath.SkipDir` during scan walks, not treated as errors.
 - **Large files** are skipped during scanning when `--max-file-size` is set (default 10MB).
 
+## Pre-commit Hooks
+
+Install [pre-commit](https://pre-commit.com/) and set up the hooks:
+
+```sh
+brew install pre-commit
+pre-commit install
+```
+
+Hooks run automatically on `git commit`. To run manually against all files:
+
+```sh
+pre-commit run --all-files
+```
+
+Configured hooks: `goimports`, `go vet`, `go build`, `go test`, `markdownlint`.
+
 ## Testing
 
 ```sh
@@ -76,6 +101,7 @@ go vet ./...           # Static analysis
 ```
 
 ### Requirements
+
 - **All tests must pass before committing.** Run `go test ./...` and `go vet ./...`.
 - Tests use stdlib `testing` only (no testify/gomock).
 - Test helpers are in `testhelpers_test.go` (both root and internal). All use `t.Helper()`.
@@ -83,13 +109,17 @@ go vet ./...           # Static analysis
 - No CLI-level tests (cmd/certkit has no test files).
 
 ### Round-trip testing
+
 Every encode/decode path must have a round-trip test: encode → decode → verify the output matches the input. This applies to all container formats (PEM, DER, PKCS#12, PKCS#7, JKS) and all key types (RSA, ECDSA, Ed25519). If a function produces output in a format, there must be a test that reads it back and validates the contents.
 
 ### Format-agnostic testing
+
 Certificate and key parsing must work regardless of encoding. If a feature accepts PEM input, it should also accept DER, PKCS#12, JKS, and PKCS#7 where applicable. Tests should cover multiple input formats for the same logical operation — don't assume PEM-only.
 
 ### Edge cases
+
 Tests must cover:
+
 - Wrong/missing passwords (for encrypted formats)
 - Different store vs key passwords (JKS)
 - Empty containers (no certs, no keys)
@@ -100,6 +130,7 @@ Tests must cover:
 - Corrupted or invalid input data
 
 ### Test style
+
 - Table-driven tests with descriptive subtest names as the default pattern.
 - One assertion per logical check — don't bundle unrelated assertions.
 - Test names describe the scenario: `TestDecodeJKS_DifferentKeyPassword`, not `TestDecodeJKS2`.
@@ -107,17 +138,21 @@ Tests must cover:
 ## Code Style
 
 ### Go version
+
 Target the latest stable Go release. Use modern stdlib features freely:
+
 - `slices` package (`slices.Contains`, `slices.IndexFunc`, `slices.Concat`)
 - `min`/`max` builtins
 - Range-over-integers where it simplifies iteration
 
 ### Formatting and imports
+
 - Run `goimports` before committing. No exceptions.
 - Two import groups: stdlib, then third-party. Alphabetical within each group.
 - No blank lines within an import group.
 
 ### Naming
+
 - Exported functions: doc comment required (godoc style). No exceptions.
 - Unexported functions: doc comment if the purpose isn't obvious from the name.
 - Error variables: `errFoo` (unexported), `ErrFoo` (exported).
@@ -125,18 +160,25 @@ Target the latest stable Go release. Use modern stdlib features freely:
 - Descriptive names over abbreviations: `certificate` not `cert` in function names (variables are fine abbreviated).
 
 ### Error handling
+
 - Always wrap with context: `fmt.Errorf("loading JKS: %w", err)`.
 - Error strings are lowercase, no trailing punctuation. Exception: acronyms (JKS, PEM, SKI).
 - Never silently ignore errors. Use `continue` in loops only with a `slog.Debug` explaining why.
 - Fail fast — return errors immediately, don't accumulate them.
 
 ### Logging and output
+
 - `log/slog` exclusively. Never `log` or `fmt.Print` for diagnostics.
 - CLI output: data to stdout, everything else to stderr.
 - JSON output ends with `\n`.
 - `time.Duration` for all timeouts (no integer milliseconds).
 
+### Diagrams
+
+- Use Mermaid (`\`\`\`mermaid`) for all diagrams. No ASCII art.
+
 ### Philosophy
+
 - Boring and readable over clever and terse.
 - DRY: extract helpers when logic repeats.
 - No premature abstractions — keep code straightforward.
@@ -145,6 +187,7 @@ Target the latest stable Go release. Use modern stdlib features freely:
 ## Dependencies
 
 Direct (8 total):
+
 - `spf13/cobra` — CLI framework
 - `jmoiron/sqlx` + `modernc.org/sqlite` — Database (pure Go, no CGO)
 - `breml/rootcerts` — Embedded Mozilla root certificates
