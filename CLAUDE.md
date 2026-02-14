@@ -288,7 +288,53 @@ Use `/ralph` or invoke this loop whenever a feature, fix, or module needs compre
 
 ---
 
-## 15 — CI & Pre-commit
+## 15 — Changelog
+
+This project maintains a `CHANGELOG.md` following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.
+
+- **CL-1 (MUST)** Every commit that changes behavior, fixes a bug, or adds a feature must add a line to the `## [Unreleased]` section of `CHANGELOG.md`. Internal-only changes (CI config, CLAUDE.md, test-only) do not require an entry unless they are notable.
+- **CL-2 (MUST)** Use the correct subsection: `Added` (new features), `Changed` (behavior changes), `Fixed` (bug fixes), `Removed` (removed features), `Deprecated` (soon-to-be-removed), `Security` (vulnerability fixes), `Tests` (test-only improvements).
+- **CL-3 (MUST)** Each entry ends with a commit ref: `([`abc1234`])` or PR ref: `([#42])`. Use the short (7-char) commit SHA.
+- **CL-4 (MUST)** Add the corresponding link definition at the bottom of the file in the reference links section (e.g., `` [`abc1234`]: https://github.com/sensiblebit/certkit/commit/abc1234 ``).
+- **CL-5 (MUST)** Mark breaking changes with a **Breaking:** prefix in the entry text.
+- **CL-6 (MUST)** When tagging a release, rename `## [Unreleased]` to `## [X.Y.Z] - YYYY-MM-DD`, add a fresh empty `## [Unreleased]` above it, and update the comparison link definitions at the bottom.
+- **CL-7 (SHOULD)** Write entries from the user's perspective — describe what changed, not how the code changed. Prefer "Add `--foo` flag to scan command" over "Add fooFlag variable to scan.go".
+
+### Entry format
+
+```markdown
+## [Unreleased]
+
+### Added
+
+- Add `--foo` flag to scan command ([`abc1234`])
+
+### Fixed
+
+- Fix nil panic when certificate has no SANs ([`def5678`])
+```
+
+### Release workflow
+
+```markdown
+## [Unreleased]
+
+## [0.6.0] - 2026-02-15
+
+### Added
+...
+```
+
+Update bottom links:
+
+```markdown
+[Unreleased]: https://github.com/sensiblebit/certkit/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/sensiblebit/certkit/compare/v0.5.0...v0.6.0
+```
+
+---
+
+## 16 — CI & Pre-commit
 
 - **CI-1 (MUST)** Lint, vet, test (`-race`), and build on every PR; cache modules/builds.
 - **CI-2 (SHOULD)** Reproducible builds with `-trimpath`; embed version via `-ldflags "-X main.version=$TAG"`.
@@ -312,7 +358,7 @@ Configured hooks: `goimports`, `go vet`, `go build`, `go test`, `markdownlint`.
 
 ---
 
-## 16 — Key Design Decisions
+## 17 — Key Design Decisions
 
 - **SKI computation uses RFC 7093 Method 1** (SHA-256 truncated to 160 bits), not the legacy SHA-1 method. `ComputeSKILegacy()` exists only for cross-matching with older certificates.
 - **AKI resolution** happens post-ingestion (`db.ResolveAKIs()`): builds a multi-hash lookup (RFC 7093 + legacy SHA-1) from all CA certs, then updates non-root cert AKIs to the computed SKI.
