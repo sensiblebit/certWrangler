@@ -114,31 +114,87 @@ func TestGenerateCSR_nonSignerKey(t *testing.T) {
 
 func TestClassifyHosts(t *testing.T) {
 	tests := []struct {
-		name                                   string
-		hosts                                  []string
-		wantDNS, wantIPs, wantURIs, wantEmails int
+		name       string
+		hosts      []string
+		wantDNS    []string
+		wantIPs    []string
+		wantURIs   []string
+		wantEmails []string
 	}{
-		{"DNS only", []string{"example.com", "www.example.com"}, 2, 0, 0, 0},
-		{"IP only", []string{"10.0.0.1", "::1"}, 0, 2, 0, 0},
-		{"URI only", []string{"spiffe://example.com/workload", "https://example.com/path"}, 0, 0, 2, 0},
-		{"Email only", []string{"admin@example.com"}, 0, 0, 0, 1},
-		{"Mixed", []string{"example.com", "10.0.0.1", "spiffe://cluster.local/ns/default", "admin@example.com", "www.example.com"}, 2, 1, 1, 1},
-		{"Empty", nil, 0, 0, 0, 0},
+		{
+			"DNS only",
+			[]string{"example.com", "www.example.com"},
+			[]string{"example.com", "www.example.com"}, nil, nil, nil,
+		},
+		{
+			"IP only",
+			[]string{"10.0.0.1", "::1"},
+			nil, []string{"10.0.0.1", "::1"}, nil, nil,
+		},
+		{
+			"URI only",
+			[]string{"spiffe://example.com/workload", "https://example.com/path"},
+			nil, nil, []string{"spiffe://example.com/workload", "https://example.com/path"}, nil,
+		},
+		{
+			"Email only",
+			[]string{"admin@example.com"},
+			nil, nil, nil, []string{"admin@example.com"},
+		},
+		{
+			"Mixed",
+			[]string{"example.com", "10.0.0.1", "spiffe://cluster.local/ns/default", "admin@example.com", "www.example.com"},
+			[]string{"example.com", "www.example.com"}, []string{"10.0.0.1"},
+			[]string{"spiffe://cluster.local/ns/default"}, []string{"admin@example.com"},
+		},
+		{
+			"Empty",
+			nil,
+			nil, nil, nil, nil,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dns, ips, uris, emails := ClassifyHosts(tt.hosts)
-			if len(dns) != tt.wantDNS {
-				t.Errorf("DNS count=%d, want %d", len(dns), tt.wantDNS)
+
+			// Verify DNS names
+			if len(dns) != len(tt.wantDNS) {
+				t.Errorf("DNS count=%d, want %d", len(dns), len(tt.wantDNS))
 			}
-			if len(ips) != tt.wantIPs {
-				t.Errorf("IP count=%d, want %d", len(ips), tt.wantIPs)
+			for i, got := range dns {
+				if i < len(tt.wantDNS) && got != tt.wantDNS[i] {
+					t.Errorf("DNS[%d]=%q, want %q", i, got, tt.wantDNS[i])
+				}
 			}
-			if len(uris) != tt.wantURIs {
-				t.Errorf("URI count=%d, want %d", len(uris), tt.wantURIs)
+
+			// Verify IP addresses
+			if len(ips) != len(tt.wantIPs) {
+				t.Errorf("IP count=%d, want %d", len(ips), len(tt.wantIPs))
 			}
-			if len(emails) != tt.wantEmails {
-				t.Errorf("email count=%d, want %d", len(emails), tt.wantEmails)
+			for i, got := range ips {
+				if i < len(tt.wantIPs) && got.String() != tt.wantIPs[i] {
+					t.Errorf("IP[%d]=%q, want %q", i, got.String(), tt.wantIPs[i])
+				}
+			}
+
+			// Verify URIs
+			if len(uris) != len(tt.wantURIs) {
+				t.Errorf("URI count=%d, want %d", len(uris), len(tt.wantURIs))
+			}
+			for i, got := range uris {
+				if i < len(tt.wantURIs) && got.String() != tt.wantURIs[i] {
+					t.Errorf("URI[%d]=%q, want %q", i, got.String(), tt.wantURIs[i])
+				}
+			}
+
+			// Verify emails
+			if len(emails) != len(tt.wantEmails) {
+				t.Errorf("email count=%d, want %d", len(emails), len(tt.wantEmails))
+			}
+			for i, got := range emails {
+				if i < len(tt.wantEmails) && got != tt.wantEmails[i] {
+					t.Errorf("email[%d]=%q, want %q", i, got, tt.wantEmails[i])
+				}
 			}
 		})
 	}

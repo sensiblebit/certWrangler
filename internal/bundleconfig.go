@@ -41,9 +41,15 @@ func LoadBundleConfigs(path string) ([]BundleConfig, error) {
 		// Apply default subject to bundles that don't have their own
 		for i := range yamlConfig.Bundles {
 			if yamlConfig.Bundles[i].Subject == nil && yamlConfig.DefaultSubject != nil {
-				// Create a copy of the default subject
-				defaultCopy := *yamlConfig.DefaultSubject
-				yamlConfig.Bundles[i].Subject = &defaultCopy
+				// Deep copy the default subject so bundles don't share slice backing arrays
+				d := yamlConfig.DefaultSubject
+				yamlConfig.Bundles[i].Subject = &SubjectConfig{
+					Country:            append([]string{}, d.Country...),
+					Province:           append([]string{}, d.Province...),
+					Locality:           append([]string{}, d.Locality...),
+					Organization:       append([]string{}, d.Organization...),
+					OrganizationalUnit: append([]string{}, d.OrganizationalUnit...),
+				}
 			}
 		}
 		return yamlConfig.Bundles, nil

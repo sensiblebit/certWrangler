@@ -3,6 +3,7 @@ package internal
 import (
 	"database/sql"
 	"encoding/hex"
+	"fmt"
 	"testing"
 	"time"
 
@@ -272,6 +273,102 @@ func TestDumpDB_NoError(t *testing.T) {
 	// DumpDB should not error on a populated DB
 	if err := db.DumpDB(); err != nil {
 		t.Errorf("DumpDB: %v", err)
+	}
+}
+
+func TestGetScanSummary(t *testing.T) {
+	db, err := NewDB("")
+	if err != nil {
+		t.Fatalf("NewDB: %v", err)
+	}
+	defer db.Close()
+
+	// Empty DB should return all zeros
+	summary, err := db.GetScanSummary()
+	if err != nil {
+		t.Fatalf("GetScanSummary on empty DB: %v", err)
+	}
+	if summary.Roots != 0 || summary.Intermediates != 0 || summary.Leaves != 0 || summary.Keys != 0 || summary.Matched != 0 {
+		t.Errorf("empty DB summary should be all zeros, got %+v", summary)
+	}
+
+	now := time.Now()
+	baseCert := CertificateRecord{
+		Expiry:    now.Add(365 * 24 * time.Hour),
+		PEM:       "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
+		NotBefore: &now,
+		SANsJSON:  types.JSONText(`[]`),
+	}
+
+	// Insert 2 roots
+	for i, name := range []string{"root1", "root2"} {
+		cert := baseCert
+		cert.SerialNumber = fmt.Sprintf("root-%d", i)
+		cert.SubjectKeyIdentifier = fmt.Sprintf("root-ski-%d", i)
+		cert.AuthorityKeyIdentifier = fmt.Sprintf("root-ski-%d", i)
+		cert.CertType = "root"
+		cert.KeyType = "RSA 2048 bits"
+		cert.CommonName = sql.NullString{String: name, Valid: true}
+		cert.BundleName = name
+		if err := db.InsertCertificate(cert); err != nil {
+			t.Fatalf("insert %s: %v", name, err)
+		}
+	}
+
+	// Insert 1 intermediate
+	intCert := baseCert
+	intCert.SerialNumber = "int-1"
+	intCert.SubjectKeyIdentifier = "int-ski"
+	intCert.AuthorityKeyIdentifier = "root-ski-0"
+	intCert.CertType = "intermediate"
+	intCert.KeyType = "ECDSA P-256"
+	intCert.CommonName = sql.NullString{String: "intermediate", Valid: true}
+	intCert.BundleName = "int-bundle"
+	if err := db.InsertCertificate(intCert); err != nil {
+		t.Fatalf("insert intermediate: %v", err)
+	}
+
+	// Insert 3 leaves, one with matching key
+	for i := range 3 {
+		cert := baseCert
+		cert.SerialNumber = fmt.Sprintf("leaf-%d", i)
+		cert.SubjectKeyIdentifier = fmt.Sprintf("leaf-ski-%d", i)
+		cert.AuthorityKeyIdentifier = "int-ski"
+		cert.CertType = "leaf"
+		cert.KeyType = "RSA 2048 bits"
+		cert.CommonName = sql.NullString{String: fmt.Sprintf("leaf%d.example.com", i), Valid: true}
+		cert.BundleName = fmt.Sprintf("leaf-bundle-%d", i)
+		if err := db.InsertCertificate(cert); err != nil {
+			t.Fatalf("insert leaf %d: %v", i, err)
+		}
+	}
+
+	// Insert 2 keys, one matching leaf-ski-0
+	if err := db.InsertKey(KeyRecord{SubjectKeyIdentifier: "leaf-ski-0", KeyType: "rsa", KeyData: []byte("data")}); err != nil {
+		t.Fatalf("insert key 0: %v", err)
+	}
+	if err := db.InsertKey(KeyRecord{SubjectKeyIdentifier: "orphan-ski", KeyType: "ecdsa", KeyData: []byte("data")}); err != nil {
+		t.Fatalf("insert key 1: %v", err)
+	}
+
+	summary, err = db.GetScanSummary()
+	if err != nil {
+		t.Fatalf("GetScanSummary: %v", err)
+	}
+	if summary.Roots != 2 {
+		t.Errorf("Roots = %d, want 2", summary.Roots)
+	}
+	if summary.Intermediates != 1 {
+		t.Errorf("Intermediates = %d, want 1", summary.Intermediates)
+	}
+	if summary.Leaves != 3 {
+		t.Errorf("Leaves = %d, want 3", summary.Leaves)
+	}
+	if summary.Keys != 2 {
+		t.Errorf("Keys = %d, want 2", summary.Keys)
+	}
+	if summary.Matched != 1 {
+		t.Errorf("Matched = %d, want 1 (only leaf-ski-0 has both cert and key)", summary.Matched)
 	}
 }
 
