@@ -66,11 +66,34 @@ go build ./...         # Verify compilation
 go vet ./...           # Static analysis
 ```
 
+### Requirements
+- **All tests must pass before committing.** Run `go test ./...` and `go vet ./...`.
 - Tests use stdlib `testing` only (no testify/gomock).
 - Test helpers are in `testhelpers_test.go` (both root and internal). All use `t.Helper()`.
 - Tests generate certificates dynamically — no committed fixture files.
-- Table-driven tests with descriptive subtest names.
 - No CLI-level tests (cmd/certkit has no test files).
+
+### Round-trip testing
+Every encode/decode path must have a round-trip test: encode → decode → verify the output matches the input. This applies to all container formats (PEM, DER, PKCS#12, PKCS#7, JKS) and all key types (RSA, ECDSA, Ed25519). If a function produces output in a format, there must be a test that reads it back and validates the contents.
+
+### Format-agnostic testing
+Certificate and key parsing must work regardless of encoding. If a feature accepts PEM input, it should also accept DER, PKCS#12, JKS, and PKCS#7 where applicable. Tests should cover multiple input formats for the same logical operation — don't assume PEM-only.
+
+### Edge cases
+Tests must cover:
+- Wrong/missing passwords (for encrypted formats)
+- Different store vs key passwords (JKS)
+- Empty containers (no certs, no keys)
+- Expired certificates (with and without `--allow-expired`)
+- Self-signed certificates
+- Missing intermediate chains
+- Multiple certs/keys in a single file
+- Corrupted or invalid input data
+
+### Test style
+- Table-driven tests with descriptive subtest names as the default pattern.
+- One assertion per logical check — don't bundle unrelated assertions.
+- Test names describe the scenario: `TestDecodeJKS_DifferentKeyPassword`, not `TestDecodeJKS2`.
 
 ## Code Style
 
@@ -79,24 +102,36 @@ Target the latest stable Go release. Use modern stdlib features freely:
 - `slices` package (`slices.Contains`, `slices.IndexFunc`, `slices.Concat`)
 - `min`/`max` builtins
 - Range-over-integers where it simplifies iteration
-- Table-driven tests as the default pattern
 
 ### Formatting and imports
-- All imports formatted by `goimports` (alphabetical within groups, stdlib then third-party).
+- Run `goimports` before committing. No exceptions.
 - Two import groups: stdlib, then third-party. Alphabetical within each group.
+- No blank lines within an import group.
 
-### Naming and structure
-- Exported functions have doc comments (godoc style).
-- Error wrapping with `fmt.Errorf("...: %w", err)`. Error strings are lowercase except acronyms.
-- Structured logging via `log/slog` throughout. No `log` package usage.
-- CLI output: data to stdout, warnings/errors to stderr. JSON output ends with `\n`.
+### Naming
+- Exported functions: doc comment required (godoc style). No exceptions.
+- Unexported functions: doc comment if the purpose isn't obvious from the name.
+- Error variables: `errFoo` (unexported), `ErrFoo` (exported).
+- Test helpers: always call `t.Helper()`.
+- Descriptive names over abbreviations: `certificate` not `cert` in function names (variables are fine abbreviated).
+
+### Error handling
+- Always wrap with context: `fmt.Errorf("loading JKS: %w", err)`.
+- Error strings are lowercase, no trailing punctuation. Exception: acronyms (JKS, PEM, SKI).
+- Never silently ignore errors. Use `continue` in loops only with a `slog.Debug` explaining why.
+- Fail fast — return errors immediately, don't accumulate them.
+
+### Logging and output
+- `log/slog` exclusively. Never `log` or `fmt.Print` for diagnostics.
+- CLI output: data to stdout, everything else to stderr.
+- JSON output ends with `\n`.
 - `time.Duration` for all timeouts (no integer milliseconds).
 
 ### Philosophy
 - Boring and readable over clever and terse.
-- DRY: extract helpers when logic repeats, consolidate into table-driven tests.
+- DRY: extract helpers when logic repeats.
 - No premature abstractions — keep code straightforward.
-- Fail fast with descriptive error messages including context.
+- Consistency with existing patterns trumps personal preference.
 
 ## Dependencies
 
