@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math"
 	"path/filepath"
 	"strings"
 )
@@ -221,7 +222,8 @@ func processTarArchive(input ProcessArchiveInput, gzipped bool) (int, error) {
 			slog.Debug("skipping oversized TAR entry",
 				"archive", input.ArchivePath, "entry", header.Name,
 				"size", header.Size, "limit", input.Limits.MaxEntrySize)
-			// Must drain the entry to advance the tar reader
+			// Drain the entry data. tar.Reader.Next() would skip unread data
+			// automatically, but explicit draining makes the skip visible in logs.
 			if _, err := io.Copy(io.Discard, io.LimitReader(tr, header.Size)); err != nil {
 				slog.Debug("draining oversized tar entry", "error", err)
 			}
@@ -235,8 +237,9 @@ func processTarArchive(input ProcessArchiveInput, gzipped bool) (int, error) {
 			break
 		}
 
-		// Defense-in-depth: LimitReader regardless of header claims
-		limited := io.LimitReader(tr, input.Limits.MaxEntrySize+1)
+		// Defense-in-depth: LimitReader regardless of header claims.
+		// safeLimitSize prevents int64 overflow when MaxEntrySize is near MaxInt64.
+		limited := io.LimitReader(tr, safeLimitSize(input.Limits.MaxEntrySize))
 		data, err := io.ReadAll(limited)
 		if err != nil {
 			slog.Debug("reading TAR entry", "archive", input.ArchivePath, "entry", header.Name, "error", err)
@@ -272,8 +275,9 @@ func readZipEntry(f *zip.File, maxSize int64) ([]byte, error) {
 	}
 	defer rc.Close()
 
-	// Defense-in-depth: LimitReader to maxSize+1 so we can detect overflow
-	limited := io.LimitReader(rc, maxSize+1)
+	// Defense-in-depth: LimitReader to maxSize+1 so we can detect overflow.
+	// safeLimitSize prevents int64 overflow when maxSize is near MaxInt64.
+	limited := io.LimitReader(rc, safeLimitSize(maxSize))
 	data, err := io.ReadAll(limited)
 	if err != nil {
 		return nil, fmt.Errorf("reading ZIP entry %s: %w", f.Name, err)
@@ -284,6 +288,15 @@ func readZipEntry(f *zip.File, maxSize int64) ([]byte, error) {
 	}
 
 	return data, nil
+}
+
+// safeLimitSize returns maxSize+1 for overflow detection in io.LimitReader,
+// clamped to math.MaxInt64 to prevent int64 wraparound.
+func safeLimitSize(maxSize int64) int64 {
+	if maxSize >= math.MaxInt64 {
+		return math.MaxInt64
+	}
+	return maxSize + 1
 }
 
 // formatLabel returns a human-readable format label for tar archives.

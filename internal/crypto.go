@@ -321,8 +321,16 @@ var jksExtensions = map[string]bool{
 }
 
 // hasBinaryExtension reports whether the file path has a recognized DER or JKS
-// extension. The extension is matched case-insensitively.
+// extension. The extension is matched case-insensitively. For virtual paths
+// containing a ":" separator (e.g., "archive.zip:certs/server.p12"), the
+// extension is extracted from the portion after the last ":" to avoid
+// filepath.Ext misinterpreting the archive path component.
 func hasBinaryExtension(path string) bool {
+	// For virtual paths like "archive.zip:entry.der", extract the entry name
+	// so filepath.Ext doesn't see "archive.zip:entry" and return garbage.
+	if idx := strings.LastIndex(path, ":"); idx >= 0 {
+		path = path[idx+1:]
+	}
 	ext := strings.ToLower(filepath.Ext(path))
 	return derExtensions[ext] || jksExtensions[ext]
 }
