@@ -139,6 +139,38 @@ func TestGenerateKeyFiles_WithCSR(t *testing.T) {
 	}
 }
 
+func TestGenerateKeyFiles_KeyPermissions(t *testing.T) {
+	dir := t.TempDir()
+	_, err := GenerateKeyFiles(KeygenOptions{
+		Algorithm: "ecdsa",
+		Curve:     "P-256",
+		OutPath:   dir,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	keyPath := filepath.Join(dir, "key.pem")
+	info, err := os.Stat(keyPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	perm := info.Mode().Perm()
+	if perm != 0600 {
+		t.Errorf("key file permissions = %04o, want 0600", perm)
+	}
+
+	pubPath := filepath.Join(dir, "pub.pem")
+	pubInfo, err := os.Stat(pubPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pubPerm := pubInfo.Mode().Perm()
+	if pubPerm != 0644 {
+		t.Errorf("pub file permissions = %04o, want 0644", pubPerm)
+	}
+}
+
 func TestGenerateKeyFiles_Stdout(t *testing.T) {
 	result, err := GenerateKeyFiles(KeygenOptions{
 		Algorithm: "ecdsa",

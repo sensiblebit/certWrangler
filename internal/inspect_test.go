@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/sensiblebit/certkit"
 )
 
 func TestInspectFile_Certificate(t *testing.T) {
@@ -31,7 +33,13 @@ func TestInspectFile_Certificate(t *testing.T) {
 		t.Errorf("subject should contain CN, got %s", results[0].Subject)
 	}
 	if results[0].SHA256 == "" {
-		t.Error("expected SHA-256 fingerprint")
+		t.Fatal("expected SHA-256 fingerprint")
+	}
+
+	// Verify SHA-256 matches what we'd compute independently
+	expectedSHA256 := certkit.CertFingerprintColonSHA256(leaf.cert)
+	if results[0].SHA256 != expectedSHA256 {
+		t.Errorf("SHA256 = %q, want %q", results[0].SHA256, expectedSHA256)
 	}
 }
 

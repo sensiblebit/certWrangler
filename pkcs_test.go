@@ -135,8 +135,15 @@ func TestDecodePKCS12_roundTrip(t *testing.T) {
 	if decodedCert.Subject.CommonName != "decode-p12-test" {
 		t.Errorf("CN=%q, want decode-p12-test", decodedCert.Subject.CommonName)
 	}
-	if _, ok := decodedKey.(*ecdsa.PrivateKey); !ok {
-		t.Errorf("expected *ecdsa.PrivateKey, got %T", decodedKey)
+	decodedECKey, ok := decodedKey.(*ecdsa.PrivateKey)
+	if !ok {
+		t.Fatalf("expected *ecdsa.PrivateKey, got %T", decodedKey)
+	}
+	if !key.Equal(decodedECKey) {
+		t.Error("decoded private key does not match original")
+	}
+	if !decodedCert.Equal(cert) {
+		t.Error("decoded certificate does not match original")
 	}
 	if len(caCerts) != 0 {
 		t.Errorf("expected 0 CA certs, got %d", len(caCerts))
@@ -249,17 +256,63 @@ func TestDecodePKCS7_roundTrip(t *testing.T) {
 	intermediate, _ := ParsePEMCertificate([]byte(intPEM))
 	leaf, _ := ParsePEMCertificate([]byte(leafPEM))
 
-	derData, err := EncodePKCS7([]*x509.Certificate{leaf, intermediate, ca})
+	original := []*x509.Certificate{leaf, intermediate, ca}
+	derData, err := EncodePKCS7(original)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	certs, err := DecodePKCS7(derData)
+	decoded, err := DecodePKCS7(derData)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(certs) != 3 {
-		t.Errorf("expected 3 certs, got %d", len(certs))
+	if len(decoded) != 3 {
+		t.Fatalf("expected 3 certs, got %d", len(decoded))
+	}
+
+	// Verify each decoded certificate matches the original
+	for i, orig := range original {
+		if !decoded[i].Equal(orig) {
+			t.Errorf("cert[%d]: decoded cert does not match original (CN=%q vs %q)",
+				i, decoded[i].Subject.CommonName, orig.Subject.CommonName)
+		}
+	}
+}
+
+func TestEncodePKCS12Legacy_roundTrip(t *testing.T) {
+	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "legacy-p12-test"},
+		NotBefore:    time.Now().Add(-1 * time.Hour),
+		NotAfter:     time.Now().Add(24 * time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+	}
+	certBytes, _ := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	cert, _ := x509.ParseCertificate(certBytes)
+
+	password := "legacy-pass"
+	pfxData, err := EncodePKCS12Legacy(key, cert, nil, password)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pfxData) == 0 {
+		t.Fatal("empty PKCS#12 legacy data")
+	}
+
+	decodedKey, decodedCert, _, err := DecodePKCS12(pfxData, password)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !decodedCert.Equal(cert) {
+		t.Error("decoded certificate does not match original")
+	}
+	decodedECKey, ok := decodedKey.(*ecdsa.PrivateKey)
+	if !ok {
+		t.Fatalf("expected *ecdsa.PrivateKey, got %T", decodedKey)
+	}
+	if !key.Equal(decodedECKey) {
+		t.Error("decoded private key does not match original")
 	}
 }
 

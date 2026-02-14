@@ -16,6 +16,28 @@ import (
 	"time"
 )
 
+func TestDefaultOptions(t *testing.T) {
+	opts := DefaultOptions()
+	if !opts.FetchAIA {
+		t.Error("FetchAIA should default to true")
+	}
+	if opts.AIATimeout != 2*time.Second {
+		t.Errorf("AIATimeout = %v, want 2s", opts.AIATimeout)
+	}
+	if opts.AIAMaxDepth != 5 {
+		t.Errorf("AIAMaxDepth = %d, want 5", opts.AIAMaxDepth)
+	}
+	if opts.TrustStore != "system" {
+		t.Errorf("TrustStore = %q, want system", opts.TrustStore)
+	}
+	if !opts.Verify {
+		t.Error("Verify should default to true")
+	}
+	if !opts.IncludeRoot {
+		t.Error("IncludeRoot should default to true")
+	}
+}
+
 func TestBundle_customRoots(t *testing.T) {
 	caKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	caTemplate := &x509.Certificate{
