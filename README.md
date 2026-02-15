@@ -13,6 +13,10 @@ A Swiss Army knife for TLS/SSL certificates. Inspect, verify, bundle, scan, and 
 
 Works with every common format out of the box. No OpenSSL gymnastics required.
 
+## Web App
+
+Use certkit directly in your browser at **[certkit.pages.dev](https://certkit.pages.dev)**. Drop certificate and key files to inspect, match, and export organized bundles -- all processing happens locally via WebAssembly. No files are uploaded.
+
 ## Install
 
 ### Homebrew (macOS)

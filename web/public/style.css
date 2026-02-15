@@ -78,6 +78,36 @@ header p {
     font-size: 0.875rem;
 }
 
+.explainer {
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+    color: var(--fg-secondary);
+    line-height: 1.7;
+}
+
+.explainer details {
+    margin-top: 0.5rem;
+}
+
+.explainer summary {
+    cursor: pointer;
+    color: var(--accent);
+    font-size: 0.8125rem;
+}
+
+.explainer summary:hover {
+    text-decoration: underline;
+}
+
+.explainer ul {
+    margin-top: 0.5rem;
+    padding-left: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    font-size: 0.8125rem;
+}
+
 .drop-zone {
     border: 2px dashed var(--border);
     border-radius: var(--radius);
