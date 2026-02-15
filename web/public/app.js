@@ -75,10 +75,14 @@ async function loadWasm() {
     wasmReady = true;
     hideStatus();
 
-    // Show version from WASM build.
+    // Show version and build year from WASM build.
     const v = window.certkitVersion;
     if (v && v !== "dev") {
         document.getElementById("version").textContent = v;
+    }
+    const y = window.certkitBuildYear;
+    if (y) {
+        document.getElementById("build-year").textContent = y;
     }
 }
 

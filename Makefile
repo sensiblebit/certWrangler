@@ -10,10 +10,11 @@ vet:
 	go vet ./...
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+BUILD_YEAR ?= $(shell date +%Y)
 
 wasm:
 	GOOS=js GOARCH=wasm go build -trimpath \
-		-ldflags="-s -w -X main.version=$(VERSION)" \
+		-ldflags="-s -w -X main.version=$(VERSION) -X main.buildYear=$(BUILD_YEAR)" \
 		-o web/public/certkit.wasm ./cmd/wasm/
 	cp "$$(go env GOROOT)/lib/wasm/wasm_exec.js" web/public/wasm_exec.js
 

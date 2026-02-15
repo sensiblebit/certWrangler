@@ -20,6 +20,9 @@ import (
 // version is set at build time via -ldflags "-X main.version=v0.6.1".
 var version = "dev"
 
+// buildYear is set at build time via -ldflags "-X main.buildYear=2026".
+var buildYear = "2025"
+
 // mozillaRoots is a lazily-initialized Mozilla root certificate pool.
 var mozillaRoots *x509.CertPool
 
@@ -36,6 +39,7 @@ var globalStore = newStore()
 
 func main() {
 	js.Global().Set("certkitVersion", version)
+	js.Global().Set("certkitBuildYear", buildYear)
 	js.Global().Set("certkitAddFiles", js.FuncOf(addFiles))
 	js.Global().Set("certkitGetState", js.FuncOf(getState))
 	js.Global().Set("certkitExportBundles", js.FuncOf(exportBundlesJS))
